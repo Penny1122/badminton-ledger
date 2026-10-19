@@ -28,6 +28,7 @@
 
 :root {
   color-scheme: light;
+  --nav-height: 3.75rem; /* 底部導覽列高度，不含 iPhone Home 指示條 */
   --page: #f8fafc;
   --surface: #ffffff;
   --subtle: #f1f5f9;

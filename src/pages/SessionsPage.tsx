@@ -138,7 +138,7 @@ function SessionList({ showVoided }: { showVoided: boolean }) {
       </ul>
 
       {selecting && (
-        <div className="fixed inset-x-0 bottom-12 border-t border-line bg-surface p-3">
+        <div className="fixed inset-x-0 bottom-[calc(var(--nav-height)+env(safe-area-inset-bottom))] border-t border-line bg-surface p-3">
           <div className="mx-auto max-w-lg">
             <ShareButtons
               text={sessionsShareText(chosen, venues.data ?? [])}
