@@ -1,9 +1,12 @@
-import { Link, useNavigate, useParams } from 'react-router'
+import { useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import ReceivableList from '../components/ReceivableList'
+import ShareButtons from '../components/ShareButtons'
 import SignupPanel from '../components/SignupPanel'
 import { useEditMode } from '../lib/editMode'
 import { formatDay, formatTimeRange, formatTWD } from '../lib/format'
 import { leaveSession, SESSION_FEE_LABEL, useSession, useVenues, voidSession, type Receivable } from '../lib/ledger'
+import { sessionsShareText } from '../lib/shareText'
 import { useEditAction } from '../lib/useEditAction'
 import { usePublicAction } from '../lib/usePublicAction'
 
@@ -15,6 +18,11 @@ export default function SessionDetailPage() {
   const venues = useVenues()
   const { run, busy, error } = useEditAction()
   const signup = usePublicAction()
+  // 剛新增完：跳出分享到 LINE
+  const location = useLocation()
+  const [showSharePrompt, setShowSharePrompt] = useState(
+    (location.state as { justCreated?: boolean } | null)?.justCreated === true,
+  )
 
   if (session.isLoading) return <p className="text-muted">載入中…</p>
   if (session.error) return <p className="text-danger">讀取失敗：{session.error.message}</p>
@@ -60,14 +68,28 @@ export default function SessionDetailPage() {
             ) : (
               s.venue
             )}
+            {s.courts && <span className="text-muted">・{s.courts} 面場</span>}
           </p>
         )}
+        {s.courts && !s.venue && <p className="mt-1">🏸 {s.courts} 面場</p>}
         <p className="mt-1 text-ink-2">
           {SESSION_FEE_LABEL[s.kind]} <span className="font-semibold tabular-nums">{formatTWD(s.court_fee)}</span>・{s.receivables.length} 人
         </p>
         {s.note && <p className="mt-1 text-sm text-muted">{s.note}</p>}
         {voided && <p className="mt-1 text-sm text-danger">已作廢{s.void_reason ? `：${s.void_reason}` : ''}</p>}
       </div>
+
+      {showSharePrompt && !voided && (
+        <div className="space-y-2 rounded-xl border border-accent-ink/40 bg-accent-soft p-3">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold text-accent-ink">✓ 活動已建立，要分享到 LINE 群組嗎？</p>
+            <button type="button" onClick={() => setShowSharePrompt(false)} className="text-sm text-muted">
+              稍後
+            </button>
+          </div>
+          <ShareButtons text={sessionsShareText([s], venues.data ?? [])} />
+        </div>
+      )}
 
       {signup.error && (
         <p role="alert" className="rounded-lg bg-danger-soft p-3 text-sm text-danger">

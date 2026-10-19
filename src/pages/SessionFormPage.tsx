@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import Field from '../components/Field'
 import MemberPicker from '../components/MemberPicker'
+import TimeSelect from '../components/TimeSelect'
 import { formatTWD, today } from '../lib/format'
 import {
   perPersonShare,
@@ -45,6 +46,7 @@ function SessionForm({ existing }: { existing: Session | null }) {
   const [startTime, setStartTime] = useState(existing?.start_time?.slice(0, 5) ?? '')
   const [endTime, setEndTime] = useState(existing?.end_time?.slice(0, 5) ?? '')
   const [venue, setVenue] = useState(existing?.venue ?? '')
+  const [courts, setCourts] = useState(existing?.courts ?? 0)
   const [courtFee, setCourtFee] = useState(existing ? String(existing.court_fee) : '')
   const [note, setNote] = useState(existing?.note ?? '')
   const [selected, setSelected] = useState(() => new Set(existing?.receivables.map((r) => r.member_id)))
@@ -84,7 +86,8 @@ function SessionForm({ existing }: { existing: Session | null }) {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!playedOn) return setError('請選擇日期')
-    if (startTime && endTime && endTime <= startTime) return setError('結束時間要晚於開始時間')
+    // 結束時間比開始時間早代表跨日（22:00–01:00），一樣才擋
+    if (startTime && endTime && endTime === startTime) return setError('結束時間不能和開始時間一樣')
     if (!Number.isInteger(fee) || fee <= 0) return setError(`${feeLabel}要是大於 0 的整數`)
     if (count === 0) return setError('至少要有 1 位出席者')
 
@@ -95,6 +98,7 @@ function SessionForm({ existing }: { existing: Session | null }) {
         playedOn,
         startTime,
         endTime,
+        courts,
         venue,
         courtFee: fee,
         note,
@@ -106,7 +110,8 @@ function SessionForm({ existing }: { existing: Session | null }) {
     // 編輯完回到原本的詳細頁；新增完用詳細頁取代表單，返回時直接回列表
     const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
     if (existing && idx > 0) navigate(-1)
-    else navigate(`/sessions/${result.id}`, { replace: true })
+    // 新增完在詳細頁跳出「分享到 LINE」
+    else navigate(`/sessions/${result.id}`, { replace: true, state: { justCreated: !existing } })
   }
 
   return (
@@ -164,24 +169,15 @@ function SessionForm({ existing }: { existing: Session | null }) {
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="開始時間（選填）" htmlFor="start-time">
-          <input
-            id="start-time"
-            type="time"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2"
-          />
+          <TimeSelect id="start-time" value={startTime} onChange={setStartTime} />
         </Field>
         <Field label="結束時間（選填）" htmlFor="end-time">
-          <input
-            id="end-time"
-            type="time"
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2"
-          />
+          <TimeSelect id="end-time" value={endTime} onChange={setEndTime} />
         </Field>
       </div>
+      {startTime && endTime && endTime < startTime && (
+        <p className="-mt-2 text-xs text-muted">結束時間比開始時間早，會當作隔天 {endTime} 結束（跨日）。</p>
+      )}
 
       <Field label="場地（選填）" htmlFor="venue">
         {venueChips.length > 0 && (
@@ -215,6 +211,24 @@ function SessionForm({ existing }: { existing: Session | null }) {
             <option key={v} value={v} />
           ))}
         </datalist>
+      </Field>
+
+      <Field label="幾面場（選填）">
+        <div className="flex flex-wrap gap-2">
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setCourts(courts === n ? 0 : n)}
+              aria-pressed={courts === n}
+              className={`h-9 w-11 rounded-lg border text-sm ${
+                courts === n ? 'border-accent-ink bg-accent-soft font-semibold text-accent-ink' : 'border-line-strong bg-surface'
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
       </Field>
 
       <Field label={`出席（${count} 人）`}>

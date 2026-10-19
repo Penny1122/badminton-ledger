@@ -74,6 +74,8 @@ export type Session = {
   start_time: string | null
   end_time: string | null
   venue: string | null
+  /** 幾面場，沒填是 null */
+  courts: number | null
   court_fee: number
   note: string | null
   voided_at: string | null
@@ -212,7 +214,7 @@ export function useSessions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sessions')
-        .select(`id, kind, played_on, start_time, end_time, venue, court_fee, note, voided_at, void_reason, created_at, ${RECEIVABLE_COLUMNS}`)
+        .select(`id, kind, played_on, start_time, end_time, venue, courts, court_fee, note, voided_at, void_reason, created_at, ${RECEIVABLE_COLUMNS}`)
         .order('played_on', { ascending: false })
         .order('start_time', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
@@ -229,7 +231,7 @@ export function useSession(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sessions')
-        .select(`id, kind, played_on, start_time, end_time, venue, court_fee, note, voided_at, void_reason, created_at, ${RECEIVABLE_COLUMNS}`)
+        .select(`id, kind, played_on, start_time, end_time, venue, courts, court_fee, note, voided_at, void_reason, created_at, ${RECEIVABLE_COLUMNS}`)
         .eq('id', id!)
         .maybeSingle()
       if (error) throw error
@@ -413,6 +415,8 @@ export type SessionInput = {
   /** HH:MM，空字串代表不設定 */
   startTime: string
   endTime: string
+  /** 幾面場，0 代表不設定 */
+  courts: number
   venue: string
   courtFee: number
   note: string
@@ -433,6 +437,7 @@ export function saveSession(password: string, input: SessionInput) {
     p_kind: input.kind,
     p_start_time: input.startTime,
     p_end_time: input.endTime,
+    p_courts: input.courts,
   })
 }
 

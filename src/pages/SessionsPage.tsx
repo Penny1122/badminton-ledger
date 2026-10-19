@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import ShareButtons from '../components/ShareButtons'
 import { useEditMode } from '../lib/editMode'
 import { formatDay, formatTimeRange, formatTWD } from '../lib/format'
-import { SESSION_FEE_LABEL, useCollections, useSessions, useSettings, useVenues, type Receivable } from '../lib/ledger'
+import { SESSION_FEE_LABEL, useCollections, useSessions, useVenues, type Receivable } from '../lib/ledger'
 import { sessionsShareText } from '../lib/shareText'
 
 type Tab = 'sessions' | 'collections'
@@ -70,7 +70,6 @@ export default function SessionsPage() {
 
 function SessionList({ showVoided }: { showVoided: boolean }) {
   const sessions = useSessions()
-  const settings = useSettings()
   const venues = useVenues()
   // 選取模式：點卡片改成勾選，下方出現分享列
   const [selecting, setSelecting] = useState(false)
@@ -121,7 +120,12 @@ function SessionList({ showVoided }: { showVoided: boolean }) {
             <Card
               to={`/sessions/${s.id}`}
               title={`${s.kind === 'coaching' ? '🎓 ' : ''}${formatDay(s.played_on)} ${formatTimeRange(s.start_time, s.end_time)}`}
-              subtitle={[s.venue, `${SESSION_FEE_LABEL[s.kind]} ${formatTWD(s.court_fee)}`, `${s.receivables.length} 人`]
+              subtitle={[
+                s.venue,
+                s.courts ? `${s.courts} 面場` : null,
+                `${SESSION_FEE_LABEL[s.kind]} ${formatTWD(s.court_fee)}`,
+                `${s.receivables.length} 人`,
+              ]
                 .filter(Boolean)
                 .join('・')}
               receivables={s.receivables}
@@ -137,7 +141,7 @@ function SessionList({ showVoided }: { showVoided: boolean }) {
         <div className="fixed inset-x-0 bottom-12 border-t border-line bg-surface p-3">
           <div className="mx-auto max-w-lg">
             <ShareButtons
-              text={sessionsShareText(settings.data?.group_name ?? '羽球團', chosen, venues.data ?? [])}
+              text={sessionsShareText(chosen, venues.data ?? [])}
               disabled={chosen.length === 0}
             />
           </div>
