@@ -1,11 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import { formatTWD } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
 type Summary = { balance: number; outstanding: number }
-
-function formatTWD(n: number) {
-  return `$${n.toLocaleString('zh-TW')}`
-}
 
 export default function DashboardPage() {
   const { data, isLoading, error } = useQuery({
