@@ -22,12 +22,15 @@ export default function TransactionsPage() {
   const categories = useCategories()
   const transactions = useMonthTransactions(month)
 
-  function setParam(key: string, value: string) {
+  /** 一次更新多個網址參數；分開呼叫的話，後一次會用舊網址蓋掉前一次 */
+  function setParam(changes: Record<string, string>) {
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev)
-        if (value) next.set(key, value)
-        else next.delete(key)
+        for (const [key, value] of Object.entries(changes)) {
+          if (value) next.set(key, value)
+          else next.delete(key)
+        }
         return next
       },
       { replace: true },
@@ -35,7 +38,7 @@ export default function TransactionsPage() {
   }
 
   function shiftMonth(delta: number) {
-    setParam('month', dayjs(`${month}-01`).add(delta, 'month').format('YYYY-MM'))
+    setParam({ month: dayjs(`${month}-01`).add(delta, 'month').format('YYYY-MM') })
   }
 
   const categoryName = new Map(categories.data?.map((c) => [c.id, c.name]))
@@ -58,12 +61,20 @@ export default function TransactionsPage() {
   const byDay = new Map<string, Transaction[]>()
   for (const t of visible) byDay.set(t.occurred_on, [...(byDay.get(t.occurred_on) ?? []), t])
 
-  const categoryOptions = (categories.data ?? []).filter((c) => !type || c.type === type)
+  // 分類選單依收入、支出分組；每組裡已封存的排在最後
+  const categoryGroups = (['income', 'expense'] as const)
+    .filter((t) => !type || t === type)
+    .map((t) => ({
+      type: t,
+      items: (categories.data ?? [])
+        .filter((c) => c.type === t)
+        .sort((a, b) => Number(a.archived_at !== null) - Number(b.archived_at !== null)),
+    }))
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">金流紀錄</h1>
+        <h1 className="text-xl font-bold">帳務紀錄</h1>
         {canEdit && (
           <Link to="/transactions/new" className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent">
             ＋ 記一筆
@@ -93,10 +104,7 @@ export default function TransactionsPage() {
             <button
               key={f.value}
               type="button"
-              onClick={() => {
-                setParam('type', f.value)
-                setParam('category', '')
-              }}
+              onClick={() => setParam({ type: f.value, category: '' })}
               className={`rounded-md py-1 text-sm ${type === f.value ? 'bg-surface font-semibold shadow-sm' : 'text-muted'}`}
             >
               {f.label}
@@ -106,29 +114,32 @@ export default function TransactionsPage() {
         <div className="flex gap-2">
           <select
             value={categoryId}
-            onChange={(e) => setParam('category', e.target.value)}
+            onChange={(e) => setParam({ category: e.target.value })}
             className="min-w-0 flex-1 rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-sm"
             aria-label="分類"
           >
             <option value="">所有分類</option>
-            {categoryOptions.map((c) => (
-              <option key={c.id} value={c.id}>
-                {type ? '' : `${TXN_TYPE_LABEL[c.type]}・`}
-                {c.name}
-                {c.archived_at ? '（已封存）' : ''}
-              </option>
+            {categoryGroups.map((g) => (
+              <optgroup key={g.type} label={TXN_TYPE_LABEL[g.type]}>
+                {g.items.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.archived_at ? '（已封存）' : ''}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
           <input
             type="search"
             value={q}
-            onChange={(e) => setParam('q', e.target.value)}
+            onChange={(e) => setParam({ q: e.target.value })}
             placeholder="搜尋備註"
             className="min-w-0 flex-1 rounded-lg border border-line-strong px-2 py-1.5 text-sm"
           />
         </div>
         <label className="flex items-center gap-2 text-sm text-muted">
-          <input type="checkbox" checked={showVoided} onChange={(e) => setParam('voided', e.target.checked ? '1' : '')} />
+          <input type="checkbox" checked={showVoided} onChange={(e) => setParam({ voided: e.target.checked ? '1' : '' })} />
           顯示已作廢
         </label>
       </div>
