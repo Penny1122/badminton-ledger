@@ -65,30 +65,30 @@ export default function TransactionsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">金流紀錄</h1>
         {canEdit && (
-          <Link to="/transactions/new" className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">
+          <Link to="/transactions/new" className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent">
             ＋ 記一筆
           </Link>
         )}
       </div>
 
-      <div className="flex items-center justify-between rounded-xl bg-white p-2 shadow-sm">
-        <button type="button" onClick={() => shiftMonth(-1)} className="px-3 py-1 text-slate-500" aria-label="上個月">
+      <div className="flex items-center justify-between rounded-xl bg-surface p-2 shadow-sm">
+        <button type="button" onClick={() => shiftMonth(-1)} className="px-3 py-1 text-muted" aria-label="上個月">
           ‹
         </button>
         <span className="font-semibold">{dayjs(`${month}-01`).format('YYYY 年 M 月')}</span>
-        <button type="button" onClick={() => shiftMonth(1)} className="px-3 py-1 text-slate-500" aria-label="下個月">
+        <button type="button" onClick={() => shiftMonth(1)} className="px-3 py-1 text-muted" aria-label="下個月">
           ›
         </button>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-center">
-        <Stat label="收入" value={formatTWD(income)} className="text-emerald-600" />
-        <Stat label="支出" value={formatTWD(expense)} className="text-red-600" />
+        <Stat label="收入" value={formatTWD(income)} className="text-accent-ink" />
+        <Stat label="支出" value={formatTWD(expense)} className="text-danger" />
         <Stat label="結餘" value={formatTWD(income - expense)} />
       </div>
 
-      <div className="space-y-2 rounded-xl bg-white p-3 shadow-sm">
-        <div className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1">
+      <div className="space-y-2 rounded-xl bg-surface p-3 shadow-sm">
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-subtle p-1">
           {TYPE_FILTERS.map((f) => (
             <button
               key={f.value}
@@ -97,7 +97,7 @@ export default function TransactionsPage() {
                 setParam('type', f.value)
                 setParam('category', '')
               }}
-              className={`rounded-md py-1 text-sm ${type === f.value ? 'bg-white font-semibold shadow-sm' : 'text-slate-500'}`}
+              className={`rounded-md py-1 text-sm ${type === f.value ? 'bg-surface font-semibold shadow-sm' : 'text-muted'}`}
             >
               {f.label}
             </button>
@@ -107,7 +107,7 @@ export default function TransactionsPage() {
           <select
             value={categoryId}
             onChange={(e) => setParam('category', e.target.value)}
-            className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm"
+            className="min-w-0 flex-1 rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-sm"
             aria-label="分類"
           >
             <option value="">所有分類</option>
@@ -124,23 +124,23 @@ export default function TransactionsPage() {
             value={q}
             onChange={(e) => setParam('q', e.target.value)}
             placeholder="搜尋備註"
-            className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+            className="min-w-0 flex-1 rounded-lg border border-line-strong px-2 py-1.5 text-sm"
           />
         </div>
-        <label className="flex items-center gap-2 text-sm text-slate-500">
+        <label className="flex items-center gap-2 text-sm text-muted">
           <input type="checkbox" checked={showVoided} onChange={(e) => setParam('voided', e.target.checked ? '1' : '')} />
           顯示已作廢
         </label>
       </div>
 
-      {transactions.isLoading && <p className="text-slate-500">載入中…</p>}
-      {transactions.error && <p className="text-red-600">讀取失敗：{transactions.error.message}</p>}
-      {transactions.data && visible.length === 0 && <p className="py-8 text-center text-slate-400">這個月沒有符合的紀錄</p>}
+      {transactions.isLoading && <p className="text-muted">載入中…</p>}
+      {transactions.error && <p className="text-danger">讀取失敗：{transactions.error.message}</p>}
+      {transactions.data && visible.length === 0 && <p className="py-8 text-center text-faint">這個月沒有符合的紀錄</p>}
 
       {[...byDay].map(([day, items]) => (
         <section key={day}>
-          <h2 className="mb-1 px-1 text-sm text-slate-500">{formatDay(day)}</h2>
-          <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl bg-white shadow-sm">
+          <h2 className="mb-1 px-1 text-sm text-muted">{formatDay(day)}</h2>
+          <ul className="divide-y divide-line overflow-hidden rounded-xl bg-surface shadow-sm">
             {items.map((t) => (
               <li key={t.id}>
                 <TransactionRow txn={t} categoryName={categoryName.get(t.category_id) ?? '（未知分類）'} canEdit={canEdit} />
@@ -155,8 +155,8 @@ export default function TransactionsPage() {
 
 function Stat({ label, value, className = '' }: { label: string; value: string; className?: string }) {
   return (
-    <div className="rounded-xl bg-white p-2 shadow-sm">
-      <p className="text-xs text-slate-500">{label}</p>
+    <div className="rounded-xl bg-surface p-2 shadow-sm">
+      <p className="text-xs text-muted">{label}</p>
       <p className={`font-bold tabular-nums ${className}`}>{value}</p>
     </div>
   )
@@ -169,14 +169,14 @@ function TransactionRow({ txn, categoryName, canEdit }: { txn: Transaction; cate
       <div className="min-w-0 flex-1">
         <p className={`font-medium ${voided ? 'line-through' : ''}`}>
           {categoryName}
-          {isLinked(txn) && <span className="ml-1.5 rounded bg-slate-100 px-1.5 text-xs font-normal text-slate-500">自動</span>}
+          {isLinked(txn) && <span className="ml-1.5 rounded bg-subtle px-1.5 text-xs font-normal text-muted">自動</span>}
         </p>
-        {txn.note && <p className="truncate text-sm text-slate-500">{txn.note}</p>}
-        {voided && <p className="text-xs text-red-600">已作廢{txn.void_reason ? `：${txn.void_reason}` : ''}</p>}
+        {txn.note && <p className="truncate text-sm text-muted">{txn.note}</p>}
+        {voided && <p className="text-xs text-danger">已作廢{txn.void_reason ? `：${txn.void_reason}` : ''}</p>}
       </div>
       <span
         className={`font-semibold tabular-nums ${voided ? 'line-through' : ''} ${
-          txn.type === 'income' ? 'text-emerald-600' : 'text-red-600'
+          txn.type === 'income' ? 'text-accent-ink' : 'text-danger'
         }`}
       >
         {formatSigned(txn.type, txn.amount)}
@@ -188,14 +188,14 @@ function TransactionRow({ txn, categoryName, canEdit }: { txn: Transaction; cate
   const source = txn.session_id ? `/sessions/${txn.session_id}` : txn.collection_id ? `/collections/${txn.collection_id}` : null
   if (source) {
     return (
-      <Link to={source} className="block active:bg-slate-50">
+      <Link to={source} className="block active:bg-subtle">
         {content}
       </Link>
     )
   }
   if (canEdit && !voided && !isLinked(txn)) {
     return (
-      <Link to={`/transactions/${txn.id}`} className="block active:bg-slate-50">
+      <Link to={`/transactions/${txn.id}`} className="block active:bg-subtle">
         {content}
       </Link>
     )

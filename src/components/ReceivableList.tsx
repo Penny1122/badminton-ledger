@@ -24,28 +24,28 @@ export default function ReceivableList({
         <h2 className="font-semibold">
           收款 {paid.length}/{receivables.length}
         </h2>
-        <span className="text-sm text-slate-500 tabular-nums">
-          已收 {formatTWD(paidTotal)}・待收 <span className="text-amber-600">{formatTWD(total - paidTotal)}</span>
+        <span className="text-sm text-muted tabular-nums">
+          已收 {formatTWD(paidTotal)}・待收 <span className="text-warn">{formatTWD(total - paidTotal)}</span>
         </span>
       </div>
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <p role="alert" className="rounded-lg bg-danger-soft p-3 text-sm text-danger">
           {error}
         </p>
       )}
-      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl bg-white shadow-sm">
+      <ul className="divide-y divide-line overflow-hidden rounded-xl bg-surface shadow-sm">
         {receivables.map((r) => {
           const isPaid = r.paid_at !== null
           const row = (
             <>
               <span className="flex-1">
                 {r.member.name}
-                {r.is_vip && <span className="ml-1 text-xs text-amber-600">VIP</span>}
+                {r.is_vip && <span className="ml-1 text-xs text-warn">VIP</span>}
               </span>
               <span className="text-right tabular-nums">
-                <span className={isPaid ? 'text-slate-400' : 'font-semibold'}>{formatTWD(r.amount_due)}</span>
+                <span className={isPaid ? 'text-faint' : 'font-semibold'}>{formatTWD(r.amount_due)}</span>
                 {showBreakdown && r.surcharge_amount > 0 && (
-                  <span className="block text-xs text-slate-400">
+                  <span className="block text-xs text-faint">
                     {r.share_amount} + 球費 {r.surcharge_amount}
                   </span>
                 )}
@@ -61,13 +61,13 @@ export default function ReceivableList({
                     checked={isPaid}
                     disabled={busy}
                     onChange={(e) => void run((password) => setReceivablePaid(password, r.id, e.target.checked))}
-                    className="h-5 w-5 accent-emerald-600"
+                    className="h-5 w-5 accent-accent"
                   />
                   {row}
                 </label>
               ) : (
                 <div className="flex items-center gap-3 px-3 py-2.5">
-                  <span className={`w-5 text-center ${isPaid ? 'text-emerald-600' : 'text-slate-300'}`}>
+                  <span className={`w-5 text-center ${isPaid ? 'text-accent-ink' : 'text-faint'}`}>
                     {isPaid ? '✓' : '○'}
                   </span>
                   {row}

@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
+import ShareButtons from '../components/ShareButtons'
 import { useEditMode } from '../lib/editMode'
 import { formatDay, formatTWD } from '../lib/format'
-import { useCollections, useSessions, type Receivable } from '../lib/ledger'
+import { useCollections, useSessions, useSettings, type Receivable } from '../lib/ledger'
+import { sessionsShareText } from '../lib/shareText'
 
 type Tab = 'sessions' | 'collections'
 
@@ -30,14 +33,14 @@ export default function SessionsPage() {
         {canEdit && (
           <Link
             to={tab === 'sessions' ? '/sessions/new' : '/collections/new'}
-            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white"
+            className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent"
           >
             ＋ {tab === 'sessions' ? '新增場次' : '新增收款單'}
           </Link>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-200/60 p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-lg bg-subtle p-1">
         {(
           [
             ['sessions', '打球場次'],
@@ -48,14 +51,14 @@ export default function SessionsPage() {
             key={value}
             type="button"
             onClick={() => setParam('tab', value === 'sessions' ? '' : value)}
-            className={`rounded-md py-1.5 text-sm ${tab === value ? 'bg-white font-semibold shadow-sm' : 'text-slate-500'}`}
+            className={`rounded-md py-1.5 text-sm ${tab === value ? 'bg-surface font-semibold shadow-sm' : 'text-muted'}`}
           >
             {label}
           </button>
         ))}
       </div>
 
-      <label className="flex items-center gap-2 px-1 text-sm text-slate-500">
+      <label className="flex items-center gap-2 px-1 text-sm text-muted">
         <input type="checkbox" checked={showVoided} onChange={(e) => setParam('voided', e.target.checked ? '1' : '')} />
         顯示已作廢
       </label>
@@ -67,37 +70,88 @@ export default function SessionsPage() {
 
 function SessionList({ showVoided }: { showVoided: boolean }) {
   const sessions = useSessions()
-  if (sessions.isLoading) return <p className="text-slate-500">載入中…</p>
-  if (sessions.error) return <p className="text-red-600">讀取失敗：{sessions.error.message}</p>
+  const settings = useSettings()
+  // 選取模式：點卡片改成勾選，下方出現分享列
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
-  const items = (sessions.data ?? []).filter((s) => showVoided || s.voided_at === null)
-  if (items.length === 0) return <p className="py-8 text-center text-slate-400">還沒有場次</p>
+  if (sessions.isLoading) return <p className="text-muted">載入中…</p>
+  if (sessions.error) return <p className="text-danger">讀取失敗：{sessions.error.message}</p>
+
+  const items = (sessions.data ?? []).filter((s) => (showVoided && !selecting) || s.voided_at === null)
+  if (items.length === 0) return <p className="py-8 text-center text-faint">還沒有場次</p>
+
+  const chosen = items.filter((s) => selected.has(s.id))
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function stopSelecting() {
+    setSelecting(false)
+    setSelected(new Set())
+  }
 
   return (
-    <ul className="space-y-2">
-      {items.map((s) => (
-        <li key={s.id}>
-          <Card
-            to={`/sessions/${s.id}`}
-            title={`${formatDay(s.played_on)}${s.venue ? `・${s.venue}` : ''}`}
-            subtitle={`場地費 ${formatTWD(s.court_fee)}・${s.receivables.length} 人`}
-            receivables={s.receivables}
-            voided={s.voided_at !== null}
-          />
-        </li>
-      ))}
-    </ul>
+    <div className={`space-y-2 ${selecting ? 'pb-24' : ''}`}>
+      <div className="flex items-center justify-between px-1 text-sm">
+        {selecting ? (
+          <>
+            <span className="text-muted">點選要分享的場次（已選 {chosen.length} 場）</span>
+            <button type="button" onClick={stopSelecting} className="text-accent-ink">
+              取消
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={() => setSelecting(true)} className="ml-auto text-accent-ink">
+            選取分享
+          </button>
+        )}
+      </div>
+
+      <ul className="space-y-2">
+        {items.map((s) => (
+          <li key={s.id}>
+            <Card
+              to={`/sessions/${s.id}`}
+              title={`${formatDay(s.played_on)}${s.venue ? `・${s.venue}` : ''}`}
+              subtitle={`場地費 ${formatTWD(s.court_fee)}・${s.receivables.length} 人`}
+              receivables={s.receivables}
+              voided={s.voided_at !== null}
+              selected={selecting ? selected.has(s.id) : undefined}
+              onSelect={() => toggle(s.id)}
+            />
+          </li>
+        ))}
+      </ul>
+
+      {selecting && (
+        <div className="fixed inset-x-0 bottom-12 border-t border-line bg-surface p-3">
+          <div className="mx-auto max-w-lg">
+            <ShareButtons
+              text={sessionsShareText(settings.data?.group_name ?? '羽球團', chosen)}
+              disabled={chosen.length === 0}
+            />
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
 function CollectionList({ showVoided }: { showVoided: boolean }) {
   const collections = useCollections()
-  if (collections.isLoading) return <p className="text-slate-500">載入中…</p>
-  if (collections.error) return <p className="text-red-600">讀取失敗：{collections.error.message}</p>
+  if (collections.isLoading) return <p className="text-muted">載入中…</p>
+  if (collections.error) return <p className="text-danger">讀取失敗：{collections.error.message}</p>
 
   const items = (collections.data ?? []).filter((c) => showVoided || c.voided_at === null)
   if (items.length === 0) {
-    return <p className="py-8 text-center text-slate-400">還沒有收款單。向 VIP 收球款時可以建立一張。</p>
+    return <p className="py-8 text-center text-faint">還沒有收款單。向 VIP 收球款時可以建立一張。</p>
   }
 
   return (
@@ -123,36 +177,69 @@ function Card({
   subtitle,
   receivables,
   voided,
+  selected,
+  onSelect,
 }: {
   to: string
   title: string
   subtitle: string
   receivables: Receivable[]
   voided: boolean
+  /** 有值時是選取模式：點卡片切換勾選，不會跳頁 */
+  selected?: boolean
+  onSelect?: () => void
 }) {
   const unpaid = receivables.filter((r) => r.paid_at === null)
   const outstanding = unpaid.reduce((sum, r) => sum + r.amount_due, 0)
 
-  return (
-    <Link to={to} className={`block rounded-xl bg-white p-3 shadow-sm active:bg-slate-50 ${voided ? 'opacity-50' : ''}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className={`font-semibold ${voided ? 'line-through' : ''}`}>{title}</p>
-          <p className="text-sm text-slate-500">{subtitle}</p>
-        </div>
-        {voided ? (
-          <span className="shrink-0 text-sm text-red-600">已作廢</span>
-        ) : unpaid.length === 0 ? (
-          <span className="shrink-0 text-sm text-emerald-600">✓ 已收齊</span>
-        ) : (
-          <span className="shrink-0 text-right text-sm">
-            <span className="block font-semibold text-amber-600 tabular-nums">待收 {formatTWD(outstanding)}</span>
-            <span className="text-slate-500">
-              {receivables.length - unpaid.length}/{receivables.length} 已付
-            </span>
-          </span>
-        )}
+  const content = (
+    <div className="flex items-start justify-between gap-2">
+      {selected !== undefined && (
+        <span
+          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs ${
+            selected ? 'border-accent bg-accent text-on-accent' : 'border-line-strong'
+          }`}
+        >
+          {selected && '✓'}
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className={`font-semibold ${voided ? 'line-through' : ''}`}>{title}</p>
+        <p className="text-sm text-muted">{subtitle}</p>
       </div>
+      {voided ? (
+        <span className="shrink-0 text-sm text-danger">已作廢</span>
+      ) : unpaid.length === 0 ? (
+        <span className="shrink-0 text-sm text-accent-ink">✓ 已收齊</span>
+      ) : (
+        <span className="shrink-0 text-right text-sm">
+          <span className="block font-semibold text-warn tabular-nums">待收 {formatTWD(outstanding)}</span>
+          <span className="text-muted">
+            {receivables.length - unpaid.length}/{receivables.length} 已付
+          </span>
+        </span>
+      )}
+    </div>
+  )
+
+  if (selected !== undefined) {
+    return (
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        className={`block w-full rounded-xl border-2 bg-surface p-3 text-left shadow-sm ${
+          selected ? 'border-accent' : 'border-transparent'
+        }`}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <Link to={to} className={`block rounded-xl bg-surface p-3 shadow-sm active:bg-subtle ${voided ? 'opacity-50' : ''}`}>
+      {content}
     </Link>
   )
 }

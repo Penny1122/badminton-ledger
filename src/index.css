@@ -1,9 +1,73 @@
 @import "tailwindcss";
 
-@theme {
+/*
+ * 顏色一律用下面的語意色（bg-surface、text-muted…），不要直接寫 slate、emerald。
+ * 深淺色只要改這裡的變數；<html class="dark"> 時套用深色（預設深色，見 index.html）。
+ */
+@theme inline {
   --font-sans: "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
+
+  --color-page: var(--page);               /* 頁面底色 */
+  --color-surface: var(--surface);         /* 卡片、輸入框 */
+  --color-subtle: var(--subtle);           /* 分段按鈕底、按下去、停用欄位 */
+  --color-line: var(--line);               /* 分隔線 */
+  --color-line-strong: var(--line-strong); /* 輸入框外框 */
+  --color-ink: var(--ink);                 /* 主要文字 */
+  --color-ink-2: var(--ink-2);             /* 次要文字 */
+  --color-muted: var(--muted);             /* 說明文字 */
+  --color-faint: var(--faint);             /* 最淡的提示 */
+  --color-accent: var(--accent);           /* 主要按鈕、餘額卡片的底色 */
+  --color-on-accent: var(--on-accent);     /* accent 底色上的文字 */
+  --color-accent-ink: var(--accent-ink);   /* 綠色文字、收入、選取的外框 */
+  --color-accent-soft: var(--accent-soft); /* 選取的底色 */
+  --color-danger: var(--danger);           /* 支出、錯誤、作廢 */
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);               /* 待收款、提醒 */
+  --color-warn-soft: var(--warn-soft);
+}
+
+:root {
+  color-scheme: light;
+  --page: #f8fafc;
+  --surface: #ffffff;
+  --subtle: #f1f5f9;
+  --line: #f1f5f9;
+  --line-strong: #cbd5e1;
+  --ink: #0f172a;
+  --ink-2: #475569;
+  --muted: #64748b;
+  --faint: #94a3b8;
+  --accent: #059669;
+  --on-accent: #ffffff;
+  --accent-ink: #047857;
+  --accent-soft: #ecfdf5;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --warn: #b45309;
+  --warn-soft: #fffbeb;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --page: #020617;
+  --surface: #0f172a;
+  --subtle: #1e293b;
+  --line: #1e293b;
+  --line-strong: #334155;
+  --ink: #f1f5f9;
+  --ink-2: #cbd5e1;
+  --muted: #94a3b8;
+  --faint: #64748b;
+  --accent: #059669;
+  --on-accent: #ffffff;
+  --accent-ink: #34d399;
+  --accent-soft: #10b98126;
+  --danger: #f87171;
+  --danger-soft: #ef44441f;
+  --warn: #fbbf24;
+  --warn-soft: #f59e0b1a;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-page text-ink antialiased;
 }

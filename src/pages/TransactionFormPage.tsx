@@ -20,12 +20,12 @@ export default function TransactionFormPage() {
   const existing = useTransaction(id)
 
   if (id === undefined) return <TransactionForm key="new" existing={null} />
-  if (existing.isLoading) return <p className="text-slate-500">載入中…</p>
-  if (existing.error) return <p className="text-red-600">讀取失敗：{existing.error.message}</p>
+  if (existing.isLoading) return <p className="text-muted">載入中…</p>
+  if (existing.error) return <p className="text-danger">讀取失敗：{existing.error.message}</p>
 
   const txn = existing.data
-  if (!txn || txn.voided_at !== null) return <p className="text-slate-500">找不到這筆紀錄，可能已被作廢。</p>
-  if (isLinked(txn)) return <p className="text-slate-500">這筆是場次或收款單自動產生的，請到原本的地方修改。</p>
+  if (!txn || txn.voided_at !== null) return <p className="text-muted">找不到這筆紀錄，可能已被作廢。</p>
+  if (isLinked(txn)) return <p className="text-muted">這筆是場次或收款單自動產生的，請到原本的地方修改。</p>
 
   return <TransactionForm key={txn.id} existing={txn} />
 }
@@ -77,14 +77,14 @@ function TransactionForm({ existing }: { existing: Transaction | null }) {
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <h1 className="text-xl font-bold">{existing ? '編輯紀錄' : '記一筆'}</h1>
 
-      <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-lg bg-subtle p-1">
         {(['expense', 'income'] as const).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => changeType(t)}
             className={`rounded-md py-2 font-semibold ${
-              type === t ? `bg-white shadow-sm ${t === 'income' ? 'text-emerald-600' : 'text-red-600'}` : 'text-slate-500'
+              type === t ? `bg-surface shadow-sm ${t === 'income' ? 'text-accent-ink' : 'text-danger'}` : 'text-muted'
             }`}
           >
             {TXN_TYPE_LABEL[t]}
@@ -100,13 +100,13 @@ function TransactionForm({ existing }: { existing: Transaction | null }) {
               type="button"
               onClick={() => setCategoryId(c.id)}
               className={`rounded-full border px-3 py-1 text-sm ${
-                categoryId === c.id ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-white'
+                categoryId === c.id ? 'border-accent-ink bg-accent-soft text-accent-ink' : 'border-line-strong bg-surface'
               }`}
             >
               {c.name}
             </button>
           ))}
-          {categories.isLoading && <span className="text-sm text-slate-400">載入中…</span>}
+          {categories.isLoading && <span className="text-sm text-faint">載入中…</span>}
         </div>
       </Field>
 
@@ -118,7 +118,7 @@ function TransactionForm({ existing }: { existing: Transaction | null }) {
           value={amount}
           onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))}
           placeholder="0"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-lg tabular-nums"
+          className="w-full rounded-lg border border-line-strong px-3 py-2 text-lg tabular-nums"
         />
       </Field>
 
@@ -128,7 +128,7 @@ function TransactionForm({ existing }: { existing: Transaction | null }) {
           type="date"
           value={occurredOn}
           onChange={(e) => setOccurredOn(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+          className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2"
         />
       </Field>
 
@@ -139,12 +139,12 @@ function TransactionForm({ existing }: { existing: Transaction | null }) {
           onChange={(e) => setNote(e.target.value)}
           maxLength={200}
           placeholder="例如：勝利羽球 3 打"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2"
+          className="w-full rounded-lg border border-line-strong px-3 py-2"
         />
       </Field>
 
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
@@ -152,7 +152,7 @@ function TransactionForm({ existing }: { existing: Transaction | null }) {
       <button
         type="submit"
         disabled={busy}
-        className="w-full rounded-lg bg-emerald-600 py-2.5 font-semibold text-white disabled:opacity-50"
+        className="w-full rounded-lg bg-accent py-2.5 font-semibold text-on-accent disabled:opacity-50"
       >
         {busy ? '儲存中…' : '儲存'}
       </button>
@@ -162,7 +162,7 @@ function TransactionForm({ existing }: { existing: Transaction | null }) {
           type="button"
           onClick={handleVoid}
           disabled={busy}
-          className="w-full rounded-lg border border-red-300 py-2.5 font-semibold text-red-600 disabled:opacity-50"
+          className="w-full rounded-lg border border-danger/40 py-2.5 font-semibold text-danger disabled:opacity-50"
         >
           作廢這筆
         </button>

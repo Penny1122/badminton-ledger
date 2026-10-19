@@ -5,6 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>羽球記帳</title>
+    <!-- 畫面出現前先套用主題，避免閃一下白色；預設深色。鍵名和 src/lib/theme.ts 一致 -->
+    <script>
+      try {
+        if (localStorage.getItem('badminton.theme') !== 'light') document.documentElement.classList.add('dark')
+      } catch {
+        document.documentElement.classList.add('dark')
+      }
+    </script>
     <!-- 帳目有成員名字，不讓搜尋引擎收錄 -->
     <meta name="robots" content="noindex, nofollow" />
     <meta name="description" content="羽球團公基金：餘額、收支明細、誰還沒付款" />
