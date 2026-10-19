@@ -1,0 +1,35 @@
+{
+  "name": "badminton-ledger",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "gen:types": "supabase gen types typescript --linked --schema public > src/lib/database.types.ts",
+    "db:push": "supabase db push"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.109.0",
+    "@tanstack/react-query": "^5.104.4",
+    "dayjs": "^1.11.23",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router": "^7.18.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.81.0",
+    "supabase": "^2.121.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+  },
+  "packageManager": "pnpm@10.34.6"
+}
