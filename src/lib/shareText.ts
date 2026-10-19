@@ -13,7 +13,7 @@ export function sessionsShareText(groupName: string, sessions: Session[]) {
   for (const s of [...sessions].sort((a, b) => a.played_on.localeCompare(b.played_on))) {
     lines.push(
       '',
-      `📅 ${formatDay(s.played_on)}${s.venue ? `・${s.venue}` : ''}`,
+      `📅 ${formatDay(s.played_on)}${s.venue ? `・${s.venue}` : ''}${s.kind === 'coaching' ? '（教練課）' : ''}`,
       `參加（${s.receivables.length} 人）：${s.receivables.map((r) => r.member.name).join('、')}`,
     )
   }

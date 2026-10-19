@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import ShareButtons from '../components/ShareButtons'
 import { useEditMode } from '../lib/editMode'
 import { formatDay, formatTWD } from '../lib/format'
-import { useCollections, useSessions, useSettings, type Receivable } from '../lib/ledger'
+import { SESSION_FEE_LABEL, useCollections, useSessions, useSettings, type Receivable } from '../lib/ledger'
 import { sessionsShareText } from '../lib/shareText'
 
 type Tab = 'sessions' | 'collections'
@@ -119,8 +119,8 @@ function SessionList({ showVoided }: { showVoided: boolean }) {
           <li key={s.id}>
             <Card
               to={`/sessions/${s.id}`}
-              title={`${formatDay(s.played_on)}${s.venue ? `・${s.venue}` : ''}`}
-              subtitle={`場地費 ${formatTWD(s.court_fee)}・${s.receivables.length} 人`}
+              title={`${s.kind === 'coaching' ? '🎓 ' : ''}${formatDay(s.played_on)}${s.venue ? `・${s.venue}` : ''}`}
+              subtitle={`${SESSION_FEE_LABEL[s.kind]} ${formatTWD(s.court_fee)}・${s.receivables.length} 人`}
               receivables={s.receivables}
               voided={s.voided_at !== null}
               selected={selecting ? selected.has(s.id) : undefined}

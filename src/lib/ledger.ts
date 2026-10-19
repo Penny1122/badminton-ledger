@@ -59,8 +59,16 @@ export type Receivable = {
   member: { name: string }
 }
 
+export type SessionKind = 'play' | 'coaching'
+
+export const SESSION_KIND_LABEL: Record<SessionKind, string> = { play: '打球', coaching: '教練課' }
+
+/** 場次金額欄位的名稱：打球是場地費，教練課是教練費 */
+export const SESSION_FEE_LABEL: Record<SessionKind, string> = { play: '場地費', coaching: '教練費' }
+
 export type Session = {
   id: string
+  kind: SessionKind
   played_on: string
   venue: string | null
   court_fee: number
@@ -199,7 +207,7 @@ export function useSessions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sessions')
-        .select(`id, played_on, venue, court_fee, note, voided_at, void_reason, created_at, ${RECEIVABLE_COLUMNS}`)
+        .select(`id, kind, played_on, venue, court_fee, note, voided_at, void_reason, created_at, ${RECEIVABLE_COLUMNS}`)
         .order('played_on', { ascending: false })
         .order('created_at', { ascending: false })
       if (error) throw error
@@ -215,7 +223,7 @@ export function useSession(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sessions')
-        .select(`id, played_on, venue, court_fee, note, voided_at, void_reason, created_at, ${RECEIVABLE_COLUMNS}`)
+        .select(`id, kind, played_on, venue, court_fee, note, voided_at, void_reason, created_at, ${RECEIVABLE_COLUMNS}`)
         .eq('id', id!)
         .maybeSingle()
       if (error) throw error
@@ -379,6 +387,7 @@ export function saveMember(
 
 export type SessionInput = {
   id: string | null
+  kind: SessionKind
   playedOn: string
   venue: string
   courtFee: number
@@ -397,6 +406,7 @@ export function saveSession(password: string, input: SessionInput) {
     p_note: input.note,
     p_member_ids: input.memberIds,
     p_new_names: input.newNames,
+    p_kind: input.kind,
   })
 }
 

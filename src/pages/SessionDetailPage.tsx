@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import ReceivableList from '../components/ReceivableList'
 import { useEditMode } from '../lib/editMode'
 import { formatDay, formatTWD } from '../lib/format'
-import { useSession, voidSession } from '../lib/ledger'
+import { SESSION_FEE_LABEL, useSession, voidSession } from '../lib/ledger'
 import { useEditAction } from '../lib/useEditAction'
 
 export default function SessionDetailPage() {
@@ -21,7 +21,7 @@ export default function SessionDetailPage() {
   const hasPaid = s.receivables.some((r) => r.paid_at !== null)
 
   async function handleVoid() {
-    const reason = window.prompt('作廢這個場次？場地費支出也會一起作廢。可以填寫原因（選填）')
+    const reason = window.prompt(`作廢這個場次？${SESSION_FEE_LABEL[s!.kind]}支出也會一起作廢。可以填寫原因（選填）`)
     if (reason === null) return
     const ok = await run((password) => voidSession(password, s!.id, reason))
     if (ok) navigate('/sessions', { replace: true })
@@ -31,11 +31,12 @@ export default function SessionDetailPage() {
     <div className="space-y-4">
       <div className="rounded-xl bg-surface p-4 shadow-sm">
         <h1 className={`text-xl font-bold ${voided ? 'line-through opacity-50' : ''}`}>
+          {s.kind === 'coaching' && '🎓 '}
           {formatDay(s.played_on)}
           {s.venue && <span className="font-normal text-muted">・{s.venue}</span>}
         </h1>
         <p className="mt-1 text-ink-2">
-          場地費 <span className="font-semibold tabular-nums">{formatTWD(s.court_fee)}</span>・{s.receivables.length} 人
+          {SESSION_FEE_LABEL[s.kind]} <span className="font-semibold tabular-nums">{formatTWD(s.court_fee)}</span>・{s.receivables.length} 人
         </p>
         {s.note && <p className="mt-1 text-sm text-muted">{s.note}</p>}
         {voided && <p className="mt-1 text-sm text-danger">已作廢{s.void_reason ? `：${s.void_reason}` : ''}</p>}

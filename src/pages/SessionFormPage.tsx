@@ -3,7 +3,18 @@ import { useNavigate, useParams } from 'react-router'
 import Field from '../components/Field'
 import MemberPicker from '../components/MemberPicker'
 import { formatTWD, today } from '../lib/format'
-import { perPersonShare, saveSession, useMembers, useSession, useSessions, useSettings, type Session } from '../lib/ledger'
+import {
+  perPersonShare,
+  saveSession,
+  SESSION_FEE_LABEL,
+  SESSION_KIND_LABEL,
+  useMembers,
+  useSession,
+  useSessions,
+  useSettings,
+  type Session,
+  type SessionKind,
+} from '../lib/ledger'
 import { useEditAction } from '../lib/useEditAction'
 
 /** 新增：/sessions/new；編輯：/sessions/:id/edit */
@@ -27,6 +38,7 @@ function SessionForm({ existing }: { existing: Session | null }) {
   const sessions = useSessions()
   const { run, busy, error, setError } = useEditAction()
 
+  const [kind, setKind] = useState<SessionKind>(existing?.kind ?? 'play')
   const [playedOn, setPlayedOn] = useState(existing?.played_on ?? today())
   const [venue, setVenue] = useState(existing?.venue ?? '')
   const [courtFee, setCourtFee] = useState(existing ? String(existing.court_fee) : '')
@@ -44,7 +56,9 @@ function SessionForm({ existing }: { existing: Session | null }) {
   const regularCount = count - vipCount
   const fee = Number(courtFee) || 0
   const share = perPersonShare(fee, count)
-  const surcharge = settings.data?.surcharge ?? 0
+  // 教練課只平分教練費，不收球費
+  const surcharge = kind === 'coaching' ? 0 : (settings.data?.surcharge ?? 0)
+  const feeLabel = SESSION_FEE_LABEL[kind]
   const total = share * count + surcharge * regularCount
 
   function toggle(id: string) {
@@ -59,12 +73,13 @@ function SessionForm({ existing }: { existing: Session | null }) {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!playedOn) return setError('請選擇日期')
-    if (!Number.isInteger(fee) || fee <= 0) return setError('場地費要是大於 0 的整數')
+    if (!Number.isInteger(fee) || fee <= 0) return setError(`${feeLabel}要是大於 0 的整數`)
     if (count === 0) return setError('至少要有 1 位出席者')
 
     const result = await run((password) =>
       saveSession(password, {
         id: existing?.id ?? null,
+        kind,
         playedOn,
         venue,
         courtFee: fee,
@@ -78,11 +93,30 @@ function SessionForm({ existing }: { existing: Session | null }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
-      <h1 className="text-xl font-bold">{existing ? '編輯場次' : '新增場次'}</h1>
+      <h1 className="text-xl font-bold">
+        {existing ? `編輯${kind === 'coaching' ? '教練課' : '場次'}` : '新增場次'}
+      </h1>
+
+      {!existing && (
+        <div className="grid grid-cols-2 gap-1 rounded-lg bg-subtle p-1">
+          {(['play', 'coaching'] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setKind(k)}
+              aria-pressed={kind === k}
+              className={`rounded-md py-2 font-semibold ${kind === k ? 'bg-surface text-accent-ink shadow-sm' : 'text-muted'}`}
+            >
+              {k === 'play' ? '🏸 ' : '🎓 '}
+              {SESSION_KIND_LABEL[k]}
+            </button>
+          ))}
+        </div>
+      )}
 
       {hasPaid && (
         <p className="rounded-lg border border-warn/40 bg-warn-soft p-3 text-sm text-warn">
-          已經有人付款，只能改日期、場地和備註。要改場地費或出席名單，請先取消勾選付款。
+          已經有人付款，只能改日期、場地和備註。要改{feeLabel}或出席名單，請先取消勾選付款。
         </p>
       )}
 
@@ -96,7 +130,7 @@ function SessionForm({ existing }: { existing: Session | null }) {
             className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2"
           />
         </Field>
-        <Field label="場地費" htmlFor="court-fee">
+        <Field label={feeLabel} htmlFor="court-fee">
           <input
             id="court-fee"
             inputMode="numeric"
@@ -145,12 +179,14 @@ function SessionForm({ existing }: { existing: Session | null }) {
 
       {count > 0 && fee > 0 && (
         <div className="space-y-1 rounded-xl bg-surface p-3 text-sm shadow-sm">
-          <Row label={`每人場地費 ⌈${fee} ÷ ${count}⌉`} value={formatTWD(share)} />
-          {vipCount > 0 && <Row label={`VIP ${vipCount} 人`} value={`各 ${formatTWD(share)}`} />}
-          {regularCount > 0 && <Row label={`一般 ${regularCount} 人（含球費 ${surcharge}）`} value={`各 ${formatTWD(share + surcharge)}`} />}
+          <Row label={`每人${feeLabel} ⌈${fee} ÷ ${count}⌉`} value={formatTWD(share)} />
+          {kind === 'play' && vipCount > 0 && <Row label={`VIP ${vipCount} 人`} value={`各 ${formatTWD(share)}`} />}
+          {kind === 'play' && regularCount > 0 && (
+            <Row label={`一般 ${regularCount} 人（含球費 ${surcharge}）`} value={`各 ${formatTWD(share + surcharge)}`} />
+          )}
           <div className="border-t border-line pt-1">
             <Row label="應收合計" value={formatTWD(total)} bold />
-            <Row label="進公基金（進位 + 球費）" value={formatTWD(total - fee)} />
+            <Row label={kind === 'coaching' ? '進公基金（進位）' : '進公基金（進位 + 球費）'} value={formatTWD(total - fee)} />
           </div>
         </div>
       )}
@@ -178,7 +214,7 @@ function SessionForm({ existing }: { existing: Session | null }) {
       >
         {busy ? '儲存中…' : '儲存'}
       </button>
-      {!existing && <p className="text-center text-xs text-faint">儲存後會自動記一筆場地費支出。</p>}
+      {!existing && <p className="text-center text-xs text-faint">儲存後會自動記一筆{feeLabel}支出。</p>}
     </form>
   )
 }
