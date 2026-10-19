@@ -12,6 +12,7 @@ import {
   useSession,
   useSessions,
   useSettings,
+  useVenues,
   type Session,
   type SessionKind,
 } from '../lib/ledger'
@@ -26,7 +27,7 @@ export default function SessionFormPage() {
   if (existing.isLoading) return <p className="text-muted">載入中…</p>
   if (existing.error) return <p className="text-danger">讀取失敗：{existing.error.message}</p>
   if (!existing.data || existing.data.voided_at !== null) {
-    return <p className="text-muted">找不到這個場次，可能已被作廢。</p>
+    return <p className="text-muted">找不到這個活動，可能已被作廢。</p>
   }
   return <SessionForm key={existing.data.id} existing={existing.data} />
 }
@@ -36,10 +37,13 @@ function SessionForm({ existing }: { existing: Session | null }) {
   const members = useMembers()
   const settings = useSettings()
   const sessions = useSessions()
+  const savedVenues = useVenues()
   const { run, busy, error, setError } = useEditAction()
 
   const [kind, setKind] = useState<SessionKind>(existing?.kind ?? 'play')
   const [playedOn, setPlayedOn] = useState(existing?.played_on ?? today())
+  const [startTime, setStartTime] = useState(existing?.start_time?.slice(0, 5) ?? '')
+  const [endTime, setEndTime] = useState(existing?.end_time?.slice(0, 5) ?? '')
   const [venue, setVenue] = useState(existing?.venue ?? '')
   const [courtFee, setCourtFee] = useState(existing ? String(existing.court_fee) : '')
   const [note, setNote] = useState(existing?.note ?? '')
@@ -47,7 +51,14 @@ function SessionForm({ existing }: { existing: Session | null }) {
   const [newNames, setNewNames] = useState<string[]>([])
 
   const hasPaid = existing?.receivables.some((r) => r.paid_at !== null) ?? false
-  const venues = [...new Set((sessions.data ?? []).map((s) => s.venue).filter((v): v is string => !!v))]
+  const venueChips = savedVenues.data ?? []
+  // 輸入框的建議：常用場地＋以前用過的場地
+  const venueSuggestions = [
+    ...new Set([
+      ...venueChips.map((v) => v.name),
+      ...(sessions.data ?? []).map((s) => s.venue).filter((v): v is string => !!v),
+    ]),
+  ]
 
   // 試算：新名字一律當一般參加者
   const memberList = members.data ?? []
@@ -73,6 +84,7 @@ function SessionForm({ existing }: { existing: Session | null }) {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!playedOn) return setError('請選擇日期')
+    if (startTime && endTime && endTime <= startTime) return setError('結束時間要晚於開始時間')
     if (!Number.isInteger(fee) || fee <= 0) return setError(`${feeLabel}要是大於 0 的整數`)
     if (count === 0) return setError('至少要有 1 位出席者')
 
@@ -81,6 +93,8 @@ function SessionForm({ existing }: { existing: Session | null }) {
         id: existing?.id ?? null,
         kind,
         playedOn,
+        startTime,
+        endTime,
         venue,
         courtFee: fee,
         note,
@@ -88,13 +102,17 @@ function SessionForm({ existing }: { existing: Session | null }) {
         newNames,
       }),
     )
-    if (result) navigate(`/sessions/${result.id}`, { replace: true })
+    if (!result) return
+    // 編輯完回到原本的詳細頁；新增完用詳細頁取代表單，返回時直接回列表
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
+    if (existing && idx > 0) navigate(-1)
+    else navigate(`/sessions/${result.id}`, { replace: true })
   }
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <h1 className="text-xl font-bold">
-        {existing ? `編輯${kind === 'coaching' ? '教練課' : '場次'}` : '新增場次'}
+        {existing ? `編輯${kind === 'coaching' ? '教練課' : '活動'}` : '新增活動'}
       </h1>
 
       {!existing && (
@@ -144,18 +162,56 @@ function SessionForm({ existing }: { existing: Session | null }) {
         </Field>
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="開始時間（選填）" htmlFor="start-time">
+          <input
+            id="start-time"
+            type="time"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2"
+          />
+        </Field>
+        <Field label="結束時間（選填）" htmlFor="end-time">
+          <input
+            id="end-time"
+            type="time"
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2"
+          />
+        </Field>
+      </div>
+
       <Field label="場地（選填）" htmlFor="venue">
+        {venueChips.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {venueChips.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setVenue(venue === v.name ? '' : v.name)}
+                aria-pressed={venue === v.name}
+                className={`rounded-full border px-3 py-1 text-sm ${
+                  venue === v.name ? 'border-accent-ink bg-accent-soft text-accent-ink' : 'border-line-strong bg-surface'
+                }`}
+              >
+                📍 {v.name}
+              </button>
+            ))}
+          </div>
+        )}
         <input
           id="venue"
           list="venue-options"
           value={venue}
           onChange={(e) => setVenue(e.target.value)}
           maxLength={30}
-          placeholder="例如：中正運動中心"
+          placeholder={venueChips.length > 0 ? '或輸入其他場地' : '例如：中正運動中心'}
           className="w-full rounded-lg border border-line-strong px-3 py-2"
         />
         <datalist id="venue-options">
-          {venues.map((v) => (
+          {venueSuggestions.map((v) => (
             <option key={v} value={v} />
           ))}
         </datalist>

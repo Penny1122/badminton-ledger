@@ -7,6 +7,7 @@ import { useEditAction } from '../lib/useEditAction'
 
 const items = [
   { to: '/settings/members', label: '成員名冊', hint: 'VIP、停用' },
+  { to: '/settings/venues', label: '常用場地', hint: '名稱、地圖連結' },
   { to: '/settings/categories', label: '分類管理', hint: '收入、支出分類' },
 ]
 
@@ -71,7 +72,7 @@ function GroupSettings({ initial }: { initial: Settings }) {
           onChange={(e) => setSurcharge(e.target.value.replace(/\D/g, ''))}
           className="w-full rounded-lg border border-line-strong px-3 py-2 tabular-nums disabled:bg-subtle"
         />
-        <p className="mt-1 text-xs text-faint">只影響之後建立的場次，舊場次的金額不會變。</p>
+        <p className="mt-1 text-xs text-faint">只影響之後建立的活動，舊活動的金額不會變。</p>
       </Field>
       {error && (
         <p role="alert" className="text-sm text-danger">

@@ -25,7 +25,7 @@ export default function TransactionFormPage() {
 
   const txn = existing.data
   if (!txn || txn.voided_at !== null) return <p className="text-muted">找不到這筆紀錄，可能已被作廢。</p>
-  if (isLinked(txn)) return <p className="text-muted">這筆是場次或收款單自動產生的，請到原本的地方修改。</p>
+  if (isLinked(txn)) return <p className="text-muted">這筆是活動或收款單自動產生的，請到原本的地方修改。</p>
 
   return <TransactionForm key={txn.id} existing={txn} />
 }

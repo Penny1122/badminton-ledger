@@ -70,6 +70,9 @@ export type Session = {
   id: string
   kind: SessionKind
   played_on: string
+  /** HH:MM:SS，沒有設定是 null */
+  start_time: string | null
+  end_time: string | null
   venue: string | null
   court_fee: number
   note: string | null
@@ -78,6 +81,8 @@ export type Session = {
   created_at: string
   receivables: Receivable[]
 }
+
+export type Venue = { id: string; name: string; map_url: string | null }
 
 export type Collection = {
   id: string
@@ -207,8 +212,9 @@ export function useSessions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sessions')
-        .select(`id, kind, played_on, venue, court_fee, note, voided_at, void_reason, created_at, ${RECEIVABLE_COLUMNS}`)
+        .select(`id, kind, played_on, start_time, end_time, venue, court_fee, note, voided_at, void_reason, created_at, ${RECEIVABLE_COLUMNS}`)
         .order('played_on', { ascending: false })
+        .order('start_time', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
       if (error) throw error
       return (data as unknown as Session[]).map(sortReceivables)
@@ -223,7 +229,7 @@ export function useSession(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sessions')
-        .select(`id, kind, played_on, venue, court_fee, note, voided_at, void_reason, created_at, ${RECEIVABLE_COLUMNS}`)
+        .select(`id, kind, played_on, start_time, end_time, venue, court_fee, note, voided_at, void_reason, created_at, ${RECEIVABLE_COLUMNS}`)
         .eq('id', id!)
         .maybeSingle()
       if (error) throw error
@@ -259,6 +265,21 @@ export function useCollection(id: string | undefined) {
         .maybeSingle()
       if (error) throw error
       return data ? sortReceivables(data as unknown as Collection) : null
+    },
+  })
+}
+
+export function useVenues() {
+  return useQuery({
+    queryKey: ['venues'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('venues')
+        .select('id, name, map_url')
+        .order('sort_order')
+        .order('created_at')
+      if (error) throw error
+      return data as Venue[]
     },
   })
 }
@@ -389,6 +410,9 @@ export type SessionInput = {
   id: string | null
   kind: SessionKind
   playedOn: string
+  /** HH:MM，空字串代表不設定 */
+  startTime: string
+  endTime: string
   venue: string
   courtFee: number
   note: string
@@ -407,7 +431,23 @@ export function saveSession(password: string, input: SessionInput) {
     p_member_ids: input.memberIds,
     p_new_names: input.newNames,
     p_kind: input.kind,
+    p_start_time: input.startTime,
+    p_end_time: input.endTime,
   })
+}
+
+/** 公開報名，不用密碼：從名冊選（memberId）或第一次來（newName）擇一 */
+export function joinSession(sessionId: string, who: { memberId: string } | { newName: string }) {
+  return callWrite('join_session', {
+    p_session_id: sessionId,
+    p_member_id: 'memberId' in who ? who.memberId : null,
+    p_new_name: 'newName' in who ? who.newName : null,
+  })
+}
+
+/** 公開取消報名，不用密碼 */
+export function leaveSession(sessionId: string, memberId: string) {
+  return callWrite('leave_session', { p_session_id: sessionId, p_member_id: memberId })
 }
 
 export function voidSession(password: string, id: string, reason: string) {
@@ -433,6 +473,14 @@ export function saveCollection(password: string, input: CollectionInput) {
     p_note: input.note,
     p_member_ids: input.memberIds,
   })
+}
+
+export function saveVenue(password: string, input: { id: string | null; name: string; mapUrl: string }) {
+  return callWrite('save_venue', { p_password: password, p_id: input.id, p_name: input.name, p_map_url: input.mapUrl })
+}
+
+export function deleteVenue(password: string, id: string) {
+  return callWrite('delete_venue', { p_password: password, p_id: id })
 }
 
 export function voidCollection(password: string, id: string) {

@@ -7,11 +7,16 @@ export default function ReceivableList({
   receivables,
   canEdit,
   showBreakdown,
+  onRemove,
+  removeDisabled,
 }: {
   receivables: Receivable[]
   canEdit: boolean
-  /** 顯示「場地 + 球費」的拆分（場次用） */
+  /** 顯示「場地 + 球費」的拆分（活動用） */
   showBreakdown?: boolean
+  /** 有傳就在每一列顯示 ✕（公開取消報名） */
+  onRemove?: (r: Receivable) => void
+  removeDisabled?: boolean
 }) {
   const { run, busy, error } = useEditAction()
   const paid = receivables.filter((r) => r.paid_at !== null)
@@ -53,9 +58,9 @@ export default function ReceivableList({
             </>
           )
           return (
-            <li key={r.id}>
+            <li key={r.id} className="flex items-center">
               {canEdit ? (
-                <label className={`flex items-center gap-3 px-3 py-2.5 ${busy ? 'opacity-60' : ''}`}>
+                <label className={`flex flex-1 items-center gap-3 px-3 py-2.5 ${busy ? 'opacity-60' : ''}`}>
                   <input
                     type="checkbox"
                     checked={isPaid}
@@ -66,12 +71,24 @@ export default function ReceivableList({
                   {row}
                 </label>
               ) : (
-                <div className="flex items-center gap-3 px-3 py-2.5">
+                <div className="flex flex-1 items-center gap-3 px-3 py-2.5">
                   <span className={`w-5 text-center ${isPaid ? 'text-accent-ink' : 'text-faint'}`}>
                     {isPaid ? '✓' : '○'}
                   </span>
                   {row}
                 </div>
+              )}
+              {onRemove && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(r)}
+                  disabled={removeDisabled}
+                  aria-label={`取消 ${r.member.name} 的報名`}
+                  title="取消報名"
+                  className="mr-1 h-9 w-9 shrink-0 rounded-md text-faint active:bg-subtle disabled:opacity-30"
+                >
+                  ✕
+                </button>
               )}
             </li>
           )

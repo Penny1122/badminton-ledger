@@ -39,7 +39,7 @@ export default function CategoriesPage() {
       ))}
       {archived.length > 0 && <ArchivedSection items={archived} action={action} />}
       <p className="text-xs text-faint">
-        標示「系統」的分類會被場次和收款單自動記帳用到，可以改名但不能封存。封存的分類不能再選，但舊紀錄照常顯示。
+        標示「系統」的分類會被活動和收款單自動記帳用到，可以改名但不能封存。封存的分類不能再選，但舊紀錄照常顯示。
       </p>
     </div>
   )

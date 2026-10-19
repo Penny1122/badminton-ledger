@@ -1,28 +1,51 @@
-import { Link, NavLink, Outlet } from 'react-router'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useEditMode } from '../lib/editMode'
 import { useSettings } from '../lib/ledger'
 import { useTheme } from '../lib/theme'
 
 const tabs = [
   { to: '/', label: '首頁', end: true },
-  { to: '/transactions', label: '金流' },
-  { to: '/sessions', label: '場次' },
+  { to: '/transactions', label: '帳務' },
+  { to: '/sessions', label: '活動' },
   { to: '/settings', label: '設定' },
 ]
+
+/** 上一層：/sessions/abc/edit → /sessions/abc → /sessions；/unlock → / */
+function parentPath(pathname: string) {
+  const parts = pathname.split('/').filter(Boolean)
+  return '/' + parts.slice(0, -1).join('/')
+}
 
 export default function AppLayout() {
   const { canEdit, lock } = useEditMode()
   const settings = useSettings()
   const { theme, toggle } = useTheme()
+  const { pathname } = useLocation()
+  const navigate = useNavigate()
+  // 底部分頁本身不顯示返回鍵，其他頁面都有
+  const isTabRoot = tabs.some((t) => t.to === pathname)
 
   function handleLock() {
     if (window.confirm('要鎖定嗎？鎖定後需要重新輸入編輯密碼。')) lock()
   }
 
+  function goBack() {
+    // 從 LINE 或書籤直接打開時沒有上一頁，改回上一層
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
+    if (idx > 0) navigate(-1)
+    else navigate(parentPath(pathname), { replace: true })
+  }
+
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
       <header className="flex items-center justify-between border-b border-line bg-surface px-4 py-3">
-        <span className="font-bold">🏸 {settings.data?.group_name ?? '羽球記帳'}</span>
+        {isTabRoot ? (
+          <span className="font-bold">🏸 {settings.data?.group_name ?? '羽球記帳'}</span>
+        ) : (
+          <button type="button" onClick={goBack} className="-ml-1 flex items-center gap-1 px-1 font-semibold text-accent-ink">
+            <span className="text-xl leading-none">‹</span> 返回
+          </button>
+        )}
         <div className="flex items-center gap-2">
           <button
             type="button"

@@ -87,7 +87,7 @@ export default function MembersPage() {
       )}
 
       {active.length === 0 ? (
-        <p className="py-8 text-center text-faint">名冊是空的。建立場次時輸入名字，也會自動加進來。</p>
+        <p className="py-8 text-center text-faint">名冊是空的。建立活動時輸入名字，也會自動加進來。</p>
       ) : (
         <MemberList members={active} canEdit={canEdit} busy={action.busy} onRename={rename} onUpdate={update} />
       )}
@@ -100,7 +100,7 @@ export default function MembersPage() {
       )}
 
       <p className="text-xs text-faint">
-        停用的成員不會出現在出席名單，但舊場次照常顯示。VIP 身分的變更只影響之後建立的場次。
+        停用的成員不會出現在出席名單，但舊活動照常顯示。VIP 身分的變更只影響之後建立的活動。
       </p>
     </div>
   )

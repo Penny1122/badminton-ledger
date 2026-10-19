@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import ShareButtons from '../components/ShareButtons'
 import { useEditMode } from '../lib/editMode'
-import { formatDay, formatTWD } from '../lib/format'
-import { SESSION_FEE_LABEL, useCollections, useSessions, useSettings, type Receivable } from '../lib/ledger'
+import { formatDay, formatTimeRange, formatTWD } from '../lib/format'
+import { SESSION_FEE_LABEL, useCollections, useSessions, useSettings, useVenues, type Receivable } from '../lib/ledger'
 import { sessionsShareText } from '../lib/shareText'
 
 type Tab = 'sessions' | 'collections'
@@ -29,13 +29,13 @@ export default function SessionsPage() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">場次與收款</h1>
+        <h1 className="text-xl font-bold">活動與收款</h1>
         {canEdit && (
           <Link
             to={tab === 'sessions' ? '/sessions/new' : '/collections/new'}
             className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent"
           >
-            ＋ {tab === 'sessions' ? '新增場次' : '新增收款單'}
+            ＋ {tab === 'sessions' ? '新增活動' : '新增收款單'}
           </Link>
         )}
       </div>
@@ -43,7 +43,7 @@ export default function SessionsPage() {
       <div className="grid grid-cols-2 gap-1 rounded-lg bg-subtle p-1">
         {(
           [
-            ['sessions', '打球場次'],
+            ['sessions', '活動'],
             ['collections', '收款單'],
           ] as const
         ).map(([value, label]) => (
@@ -71,6 +71,7 @@ export default function SessionsPage() {
 function SessionList({ showVoided }: { showVoided: boolean }) {
   const sessions = useSessions()
   const settings = useSettings()
+  const venues = useVenues()
   // 選取模式：點卡片改成勾選，下方出現分享列
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -79,7 +80,7 @@ function SessionList({ showVoided }: { showVoided: boolean }) {
   if (sessions.error) return <p className="text-danger">讀取失敗：{sessions.error.message}</p>
 
   const items = (sessions.data ?? []).filter((s) => (showVoided && !selecting) || s.voided_at === null)
-  if (items.length === 0) return <p className="py-8 text-center text-faint">還沒有場次</p>
+  if (items.length === 0) return <p className="py-8 text-center text-faint">還沒有活動</p>
 
   const chosen = items.filter((s) => selected.has(s.id))
 
@@ -102,7 +103,7 @@ function SessionList({ showVoided }: { showVoided: boolean }) {
       <div className="flex items-center justify-between px-1 text-sm">
         {selecting ? (
           <>
-            <span className="text-muted">點選要分享的場次（已選 {chosen.length} 場）</span>
+            <span className="text-muted">點選要分享的活動（已選 {chosen.length} 場）</span>
             <button type="button" onClick={stopSelecting} className="text-accent-ink">
               取消
             </button>
@@ -119,8 +120,10 @@ function SessionList({ showVoided }: { showVoided: boolean }) {
           <li key={s.id}>
             <Card
               to={`/sessions/${s.id}`}
-              title={`${s.kind === 'coaching' ? '🎓 ' : ''}${formatDay(s.played_on)}${s.venue ? `・${s.venue}` : ''}`}
-              subtitle={`${SESSION_FEE_LABEL[s.kind]} ${formatTWD(s.court_fee)}・${s.receivables.length} 人`}
+              title={`${s.kind === 'coaching' ? '🎓 ' : ''}${formatDay(s.played_on)} ${formatTimeRange(s.start_time, s.end_time)}`}
+              subtitle={[s.venue, `${SESSION_FEE_LABEL[s.kind]} ${formatTWD(s.court_fee)}`, `${s.receivables.length} 人`]
+                .filter(Boolean)
+                .join('・')}
               receivables={s.receivables}
               voided={s.voided_at !== null}
               selected={selecting ? selected.has(s.id) : undefined}
@@ -134,7 +137,7 @@ function SessionList({ showVoided }: { showVoided: boolean }) {
         <div className="fixed inset-x-0 bottom-12 border-t border-line bg-surface p-3">
           <div className="mx-auto max-w-lg">
             <ShareButtons
-              text={sessionsShareText(settings.data?.group_name ?? '羽球團', chosen)}
+              text={sessionsShareText(settings.data?.group_name ?? '羽球團', chosen, venues.data ?? [])}
               disabled={chosen.length === 0}
             />
           </div>

@@ -89,7 +89,11 @@ function CollectionForm({
         memberIds: [...selected],
       }),
     )
-    if (result) navigate(`/collections/${result.id}`, { replace: true })
+    if (!result) return
+    // 編輯完回到原本的詳細頁；新增完用詳細頁取代表單，返回時直接回列表
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
+    if (existing && idx > 0) navigate(-1)
+    else navigate(`/collections/${result.id}`, { replace: true })
   }
 
   return (

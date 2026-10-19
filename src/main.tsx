@@ -18,6 +18,7 @@ import SettingsPage from './pages/SettingsPage'
 import TransactionFormPage from './pages/TransactionFormPage'
 import TransactionsPage from './pages/TransactionsPage'
 import UnlockPage from './pages/UnlockPage'
+import VenuesPage from './pages/VenuesPage'
 
 const queryClient = new QueryClient()
 
@@ -39,6 +40,7 @@ const router = createBrowserRouter([
       { path: 'settings', element: <SettingsPage /> },
       { path: 'settings/members', element: <MembersPage /> },
       { path: 'settings/categories', element: <CategoriesPage /> },
+      { path: 'settings/venues', element: <VenuesPage /> },
       { path: 'unlock', element: <UnlockPage /> },
     ],
   },
