@@ -71,3 +71,19 @@
 body {
   @apply bg-page text-ink antialiased;
 }
+
+/*
+ * iOS Safari 的日期欄位有內建最小寬度，放在兩欄的格子裡會撐出去壓到隔壁欄位；
+ * 拿掉內建外觀、允許縮小，文字靠左和其他輸入框一致
+ */
+input[type='date'] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  min-height: 2.625rem;
+}
+
+input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
+}
