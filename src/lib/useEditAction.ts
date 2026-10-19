@@ -15,14 +15,15 @@ export function useEditAction() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function run(action: (password: string) => Promise<unknown>): Promise<boolean> {
-    if (!password || busy) return false
+  /** 成功時回傳函式的結果，失敗回傳 undefined */
+  async function run<T>(action: (password: string) => Promise<T>): Promise<T | undefined> {
+    if (!password || busy) return undefined
     setBusy(true)
     setError(null)
     try {
-      await action(password)
+      const result = await action(password)
       await queryClient.invalidateQueries()
-      return true
+      return result
     } catch (e) {
       if (isPasswordError(e)) {
         lock('編輯密碼已變更，請重新解鎖。')
@@ -30,7 +31,7 @@ export function useEditAction() {
       } else {
         setError(toApiError(e).message)
       }
-      return false
+      return undefined
     } finally {
       setBusy(false)
     }

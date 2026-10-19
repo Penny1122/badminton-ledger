@@ -184,6 +184,15 @@ function TransactionRow({ txn, categoryName, canEdit }: { txn: Transaction; cate
     </div>
   )
 
+  // 自動產生的帳目點進去看來源場次或收款單
+  const source = txn.session_id ? `/sessions/${txn.session_id}` : txn.collection_id ? `/collections/${txn.collection_id}` : null
+  if (source) {
+    return (
+      <Link to={source} className="block active:bg-slate-50">
+        {content}
+      </Link>
+    )
+  }
   if (canEdit && !voided && !isLinked(txn)) {
     return (
       <Link to={`/transactions/${txn.id}`} className="block active:bg-slate-50">

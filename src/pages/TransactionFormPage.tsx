@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import Field from '../components/Field'
 import { today } from '../lib/format'
 import {
   isLinked,
@@ -167,16 +168,5 @@ function TransactionForm({ existing }: { existing: Transaction | null }) {
         </button>
       )}
     </form>
-  )
-}
-
-function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label htmlFor={htmlFor} className="mb-1.5 block text-sm text-slate-600">
-        {label}
-      </label>
-      {children}
-    </div>
   )
 }
