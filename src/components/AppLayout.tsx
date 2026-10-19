@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router'
 import { useEditMode } from '../lib/editMode'
+import { useSettings } from '../lib/ledger'
 
 const tabs = [
   { to: '/', label: '首頁', end: true },
@@ -10,6 +11,7 @@ const tabs = [
 
 export default function AppLayout() {
   const { canEdit, lock } = useEditMode()
+  const settings = useSettings()
 
   function handleLock() {
     if (window.confirm('要鎖定嗎？鎖定後需要重新輸入編輯密碼。')) lock()
@@ -18,7 +20,7 @@ export default function AppLayout() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-        <span className="font-bold">🏸 羽球記帳</span>
+        <span className="font-bold">🏸 {settings.data?.group_name ?? '羽球記帳'}</span>
         {canEdit ? (
           <button
             type="button"

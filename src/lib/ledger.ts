@@ -255,6 +255,103 @@ export function useCollection(id: string | undefined) {
   })
 }
 
+export type LedgerSummary = { balance: number; outstanding: number }
+
+export function useLedgerSummary() {
+  return useQuery({
+    queryKey: ['ledger_summary'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('ledger_summary').select('balance, outstanding').single()
+      if (error) throw error
+      return data as LedgerSummary
+    },
+  })
+}
+
+/** 各系統分類的累計金額（不含作廢），key 是 system_key */
+export function useSystemTotals() {
+  return useQuery({
+    queryKey: ['category_totals'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('category_totals')
+        .select('system_key, total')
+        .not('system_key', 'is', null)
+      if (error) throw error
+      return Object.fromEntries((data as { system_key: string; total: number }[]).map((r) => [r.system_key, r.total]))
+    },
+  })
+}
+
+/** 球款水位 = VIP 球款 + 球費 − 羽球支出 */
+export function ballFund(totals: Record<string, number>) {
+  return (totals.vip_ball ?? 0) + (totals.ball_fee ?? 0) - (totals.shuttlecock ?? 0)
+}
+
+export type Debt = {
+  receivableId: string
+  amount: number
+  label: string
+  date: string
+  to: string
+}
+
+export type Debtor = { name: string; total: number; items: Debt[] }
+
+/** 還沒付的人，依欠款金額由多到少（不含作廢的場次和收款單） */
+export function useDebtors() {
+  return useQuery({
+    queryKey: ['debtors'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('receivables')
+        .select(
+          'id, amount_due, member:members(name), session:sessions(id, played_on, venue, voided_at), collection:collections(id, title, collected_on, voided_at)',
+        )
+        .is('paid_at', null)
+      if (error) throw error
+
+      type Row = {
+        id: string
+        amount_due: number
+        member: { name: string }
+        session: { id: string; played_on: string; venue: string | null; voided_at: string | null } | null
+        collection: { id: string; title: string; collected_on: string; voided_at: string | null } | null
+      }
+      const byName = new Map<string, Debtor>()
+      for (const r of data as unknown as Row[]) {
+        let debt: Debt
+        if (r.session) {
+          if (r.session.voided_at) continue
+          debt = {
+            receivableId: r.id,
+            amount: r.amount_due,
+            label: r.session.venue ?? '打球',
+            date: r.session.played_on,
+            to: `/sessions/${r.session.id}`,
+          }
+        } else if (r.collection) {
+          if (r.collection.voided_at) continue
+          debt = {
+            receivableId: r.id,
+            amount: r.amount_due,
+            label: r.collection.title,
+            date: r.collection.collected_on,
+            to: `/collections/${r.collection.id}`,
+          }
+        } else continue
+
+        const debtor = byName.get(r.member.name) ?? { name: r.member.name, total: 0, items: [] }
+        debtor.total += debt.amount
+        debtor.items.push(debt)
+        byName.set(r.member.name, debtor)
+      }
+      for (const d of byName.values()) d.items.sort((a, b) => a.date.localeCompare(b.date))
+      return [...byName.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'zh-TW'))
+    },
+  })
+}
+
 // ---------------------------------------------------------------------------
 // 寫入（都需要編輯密碼）
 // ---------------------------------------------------------------------------
