@@ -1,25 +1,19 @@
 -- 羽球群組記帳：初始 schema
 -- 金額一律以「新台幣元」整數儲存；日期以台北時區為準。
+--
+-- 權限模型（和麻將計分相同）：
+--   任何人都能讀（網址就是分享到 LINE 的連結），不做帳號登入。
+--   所有寫入都經過 security definer 函式，函式先檢查共用的編輯密碼。
+--   密碼只存 bcrypt 雜湊，放在不對外開放的 private schema。
+--
+-- 寫入函式統一回傳 jsonb：
+--   成功：{"ok": true, ...}
+--   密碼問題：{"error": "invalid_password" | "too_many_attempts" | "password_not_set"}
+--   密碼錯誤不用 raise，否則交易回滾會把「失敗次數」一起回滾，限制就失效了。
+
+create extension if not exists pgcrypto with schema extensions;
 
 create type public.txn_type as enum ('income', 'expense');
-
--- ---------------------------------------------------------------------------
--- 管理員：只有列在這張表的帳號能讀寫資料
--- ---------------------------------------------------------------------------
-create table public.admins (
-  user_id    uuid primary key references auth.users (id) on delete cascade,
-  created_at timestamptz not null default now()
-);
-
-create function public.is_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select exists (select 1 from public.admins where user_id = (select auth.uid()));
-$$;
 
 -- ---------------------------------------------------------------------------
 -- 群組設定（固定只有一列）
@@ -28,7 +22,6 @@ create table public.settings (
   id          boolean primary key default true check (id),
   group_name  text not null default '羽球團',
   surcharge   integer not null default 40 check (surcharge >= 0),  -- 非 VIP 每次加收（球費）
-  share_token text not null unique default replace(gen_random_uuid()::text, '-', ''),
   updated_at  timestamptz not null default now()
 );
 
@@ -179,9 +172,9 @@ from public.transactions t
 where t.voided_at is null;
 
 -- ---------------------------------------------------------------------------
--- RLS：只有管理員能存取；公開分享頁之後改走 security definer RPC
+-- RLS：任何人只能讀；寫入一律走下面檢查密碼的函式
+-- 作廢的帳目也讀得到，前端自行過濾，保留稽核軌跡
 -- ---------------------------------------------------------------------------
-alter table public.admins       enable row level security;
 alter table public.settings     enable row level security;
 alter table public.categories   enable row level security;
 alter table public.members      enable row level security;
@@ -190,23 +183,104 @@ alter table public.transactions enable row level security;
 alter table public.collections  enable row level security;
 alter table public.receivables  enable row level security;
 
-create policy "admins read self" on public.admins
-  for select to authenticated using (user_id = (select auth.uid()));
+create policy "anyone can read" on public.settings     for select to anon, authenticated using (true);
+create policy "anyone can read" on public.categories   for select to anon, authenticated using (true);
+create policy "anyone can read" on public.members      for select to anon, authenticated using (true);
+create policy "anyone can read" on public.sessions     for select to anon, authenticated using (true);
+create policy "anyone can read" on public.transactions for select to anon, authenticated using (true);
+create policy "anyone can read" on public.collections  for select to anon, authenticated using (true);
+create policy "anyone can read" on public.receivables  for select to anon, authenticated using (true);
 
-create policy "admin all" on public.settings
-  for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
-create policy "admin all" on public.categories
-  for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
-create policy "admin all" on public.members
-  for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
-create policy "admin all" on public.sessions
-  for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
-create policy "admin all" on public.transactions
-  for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
-create policy "admin all" on public.collections
-  for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
-create policy "admin all" on public.receivables
-  for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
+-- 沒有 insert / update / delete policy 就已經寫不進去；再收回權限多一層保險
+revoke insert, update, delete, truncate
+  on public.settings, public.categories, public.members, public.sessions,
+     public.transactions, public.collections, public.receivables
+  from anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 編輯密碼（private schema，對外不可見）
+-- 設定或重設密碼：在 SQL Editor 執行 supabase/set-password.sql
+-- ---------------------------------------------------------------------------
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+
+create table private.settings (
+  id                  boolean primary key default true check (id),
+  password_hash       text not null,
+  password_changed_at timestamptz not null default now()
+);
+
+create table private.password_attempts (
+  ip           text not null,
+  attempted_at timestamptz not null default now()
+);
+
+create index password_attempts_ip_idx on private.password_attempts (ip, attempted_at);
+
+-- 回傳 'ok' | 'invalid_password' | 'too_many_attempts' | 'password_not_set'
+-- 同一個 IP 10 分鐘內失敗 10 次，暫停 10 分鐘
+create function private.check_password(p_password text)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_headers json := nullif(current_setting('request.headers', true), '')::json;
+  v_ip      text := coalesce(
+    v_headers ->> 'cf-connecting-ip',
+    nullif(btrim(split_part(v_headers ->> 'x-forwarded-for', ',', 1)), ''),
+    'unknown'
+  );
+  v_hash    text;
+  v_failed  integer;
+begin
+  delete from private.password_attempts where attempted_at < now() - interval '1 day';
+
+  select count(*) into v_failed
+  from private.password_attempts
+  where ip = v_ip and attempted_at > now() - interval '10 minutes';
+
+  if v_failed >= 10 then
+    return 'too_many_attempts';
+  end if;
+
+  select password_hash into v_hash from private.settings where id;
+  if v_hash is null then
+    return 'password_not_set';
+  end if;
+
+  if p_password is null or extensions.crypt(p_password, v_hash) <> v_hash then
+    insert into private.password_attempts (ip) values (v_ip);
+    return 'invalid_password';
+  end if;
+
+  return 'ok';
+end;
+$$;
+
+revoke all on function private.check_password(text) from public, anon, authenticated;
+
+-- 解鎖時確認密碼
+create function public.verify_edit_password(p_password text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_status text := private.check_password(p_password);
+begin
+  if v_status <> 'ok' then
+    return jsonb_build_object('error', v_status);
+  end if;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+-- 函式預設對 public 開放執行；明確限定給 anon / authenticated
+revoke all on function public.verify_edit_password(text) from public;
+grant execute on function public.verify_edit_password(text) to anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 初始資料

@@ -23,15 +23,13 @@ pnpm db:push      # 套用 migration
 pnpm gen:types    # 產生 src/lib/database.types.ts
 ```
 
-## 建立管理員帳號（只需做一次）
+## 權限：共用編輯密碼
 
-1. Supabase Dashboard → Authentication → Users → **Add user**，輸入 Email 和密碼，勾選 Auto Confirm
-2. Authentication → Sign In / Providers → 關閉 **Allow new users to sign up**
-3. SQL Editor 執行（換成剛建立的 user id）：
+- 不做帳號登入。任何人打開網址都能看帳（這個網址就是分享到 LINE 的連結）
+- 預設唯讀，點右上角「🔒 唯讀」輸入編輯密碼才能新增、編輯、作廢；解鎖後這台裝置會記住
+- 密碼在資料庫端檢查，只存 bcrypt 雜湊；同一個 IP 10 分鐘內錯 10 次會暫停 10 分鐘
 
-   ```sql
-   insert into public.admins (user_id) values ('<user-id>');
-   ```
+**設定或重設密碼**：打開 [supabase/set-password.sql](supabase/set-password.sql)，換成你的密碼後，貼到 Supabase SQL Editor 執行。執行完把 SQL Editor 裡那段刪掉，不要存成 snippet。
 
 ## 分攤規則
 

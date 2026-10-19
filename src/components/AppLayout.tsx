@@ -1,5 +1,5 @@
-import { Navigate, NavLink, Outlet } from 'react-router'
-import { useAuth } from '../lib/auth'
+import { Link, NavLink, Outlet } from 'react-router'
+import { useEditMode } from '../lib/editMode'
 
 const tabs = [
   { to: '/', label: '首頁', end: true },
@@ -9,13 +9,30 @@ const tabs = [
 ]
 
 export default function AppLayout() {
-  const { session, loading } = useAuth()
+  const { canEdit, lock } = useEditMode()
 
-  if (loading) return <p className="p-6 text-center text-slate-500">載入中…</p>
-  if (!session) return <Navigate to="/login" replace />
+  function handleLock() {
+    if (window.confirm('要鎖定嗎？鎖定後需要重新輸入編輯密碼。')) lock()
+  }
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+        <span className="font-bold">🏸 羽球記帳</span>
+        {canEdit ? (
+          <button
+            type="button"
+            onClick={handleLock}
+            className="rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700"
+          >
+            🔓 已解鎖
+          </button>
+        ) : (
+          <Link to="/unlock" className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">
+            🔒 唯讀
+          </Link>
+        )}
+      </header>
       <main className="flex-1 p-4 pb-24">
         <Outlet />
       </main>
