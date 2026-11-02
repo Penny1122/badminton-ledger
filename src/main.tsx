@@ -14,6 +14,7 @@ import MembersPage from './pages/MembersPage'
 import SessionDetailPage from './pages/SessionDetailPage'
 import SessionFormPage from './pages/SessionFormPage'
 import SessionsPage from './pages/SessionsPage'
+import SessionShortLinkPage from './pages/SessionShortLinkPage'
 import SettingsPage from './pages/SettingsPage'
 import TransactionFormPage from './pages/TransactionFormPage'
 import TransactionsPage from './pages/TransactionsPage'
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
       { path: 'sessions', element: <SessionsPage /> },
       { path: 'sessions/new', element: <RequireEdit><SessionFormPage /></RequireEdit> },
       { path: 'sessions/:id', element: <SessionDetailPage /> },
+      { path: 's/:code', element: <SessionShortLinkPage /> },
       { path: 'sessions/:id/edit', element: <RequireEdit><SessionFormPage /></RequireEdit> },
       { path: 'collections/new', element: <RequireEdit><CollectionFormPage /></RequireEdit> },
       { path: 'collections/:id', element: <CollectionDetailPage /> },

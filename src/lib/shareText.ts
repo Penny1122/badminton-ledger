@@ -8,7 +8,7 @@ import { SESSION_FEE_LABEL, type Session, type Venue } from './ledger'
  *   📍 中正運動中心（2 面場） https://maps.app.goo.gl/…
  *   💰 場地費 $1,200（教練課是教練費）
  *   參加（4 人）：大樹、阿倪、阿明、小華
- *   👉 報名：https://…/sessions/<id>
+ *   👉 報名：https://…/s/<id 前 8 碼>
  *
  * 場地在常用場地裡有地圖連結時自動帶入。
  */
@@ -30,9 +30,14 @@ export function sessionsShareText(sessions: Session[], venues: Venue[]) {
     }
     lines.push(`💰 ${SESSION_FEE_LABEL[s.kind]} ${formatTWD(s.court_fee)}`)
     lines.push(`參加（${s.receivables.length} 人）：${s.receivables.map((r) => r.member.name).join('、')}`)
-    lines.push(`👉 報名：${window.location.origin}/sessions/${s.id}`)
+    lines.push(`👉 報名：${shortSessionUrl(s.id)}`)
     blocks.push(lines.join('\n'))
   }
 
   return blocks.join('\n\n')
+}
+
+/** 報名短網址：完整 uuid 太長，LINE 裡很佔版面；/s/<前 8 碼> 會轉到活動頁 */
+export function shortSessionUrl(id: string) {
+  return `${window.location.origin}/s/${id.slice(0, 8)}`
 }

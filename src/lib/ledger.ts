@@ -240,6 +240,29 @@ export function useSession(id: string | undefined) {
   })
 }
 
+/**
+ * 短網址 /s/<code>：code 是活動 id（uuid）的前 8 碼。
+ * uuid 不能用 like 查，改用範圍 [code-0000…, code-ffff…] 找；對到不只一筆就當作找不到。
+ */
+export function useSessionIdByCode(code: string | undefined) {
+  const valid = code !== undefined && /^[0-9a-f]{8}$/i.test(code)
+  return useQuery({
+    queryKey: ['session-code', code],
+    enabled: valid,
+    queryFn: async () => {
+      const c = code!.toLowerCase()
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('id')
+        .gte('id', `${c}-0000-0000-0000-000000000000`)
+        .lte('id', `${c}-ffff-ffff-ffff-ffffffffffff`)
+        .limit(2)
+      if (error) throw error
+      return data.length === 1 ? (data[0].id as string) : null
+    },
+  })
+}
+
 export function useCollections() {
   return useQuery({
     queryKey: ['collections'],
