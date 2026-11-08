@@ -364,6 +364,12 @@ export function sessionEndsAt(playedOn: string, startTime: string | null, endTim
   return startTime && endTime < startTime ? end.add(1, 'day') : end
 }
 
+/** 活動還沒開始。沒填開始時間不知道幾點打，當天整天都還算沒開始，方便當天再分享一次 */
+export function isUpcoming(s: Pick<Session, 'played_on' | 'start_time'>, now = dayjs()) {
+  const startsAt = s.start_time ? dayjs(`${s.played_on}T${s.start_time}`) : dayjs(s.played_on).add(1, 'day')
+  return now.isBefore(startsAt)
+}
+
 /**
  * 只留下已經結束的活動欠款（記帳者都是打完才收錢），還沒結束的另外算筆數和金額，
  * 讓首頁說明為什麼清單合計比「待收款」少

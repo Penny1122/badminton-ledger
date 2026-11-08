@@ -3,7 +3,16 @@ import { Link, useSearchParams } from 'react-router'
 import ShareButtons from '../components/ShareButtons'
 import { useEditMode } from '../lib/editMode'
 import { formatDay, formatTimeRange, formatTWD } from '../lib/format'
-import { SESSION_FEE_LABEL, useCollections, useSessions, useVenues, type Receivable } from '../lib/ledger'
+import {
+  isUpcoming,
+  SESSION_FEE_LABEL,
+  SESSION_KIND_LABEL,
+  useCollections,
+  useSessions,
+  useVenues,
+  type Receivable,
+  type SessionKind,
+} from '../lib/ledger'
 import { sessionsShareText } from '../lib/shareText'
 
 type Tab = 'sessions' | 'collections'
@@ -71,47 +80,29 @@ export default function SessionsPage() {
 function SessionList({ showVoided }: { showVoided: boolean }) {
   const sessions = useSessions()
   const venues = useVenues()
-  // 選取模式：點卡片改成勾選，下方出現分享列
-  const [selecting, setSelecting] = useState(false)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  // 分享面板：選打球或教練課，直接分享該類所有還沒開始的活動
+  const [sharing, setSharing] = useState(false)
+  const [shareKind, setShareKind] = useState<SessionKind>('play')
 
   if (sessions.isLoading) return <p className="text-muted">載入中…</p>
   if (sessions.error) return <p className="text-danger">讀取失敗：{sessions.error.message}</p>
 
-  const items = (sessions.data ?? []).filter((s) => (showVoided && !selecting) || s.voided_at === null)
+  const items = (sessions.data ?? []).filter((s) => showVoided || s.voided_at === null)
   if (items.length === 0) return <p className="py-8 text-center text-faint">還沒有活動</p>
 
-  const chosen = items.filter((s) => selected.has(s.id))
-
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  function stopSelecting() {
-    setSelecting(false)
-    setSelected(new Set())
-  }
+  const upcoming = (sessions.data ?? []).filter((s) => s.voided_at === null && isUpcoming(s))
+  const upcomingOf = (kind: SessionKind) =>
+    upcoming
+      .filter((s) => s.kind === kind)
+      .sort((a, b) => a.played_on.localeCompare(b.played_on) || (a.start_time ?? '').localeCompare(b.start_time ?? ''))
+  const chosen = upcomingOf(shareKind)
 
   return (
-    <div className={`space-y-2 ${selecting ? 'pb-24' : ''}`}>
-      <div className="flex items-center justify-between px-1 text-sm">
-        {selecting ? (
-          <>
-            <span className="text-muted">點選要分享的活動（已選 {chosen.length} 場）</span>
-            <button type="button" onClick={stopSelecting} className="text-accent-ink">
-              取消
-            </button>
-          </>
-        ) : (
-          <button type="button" onClick={() => setSelecting(true)} className="ml-auto text-accent-ink">
-            選取分享
-          </button>
-        )}
+    <div className={`space-y-2 ${sharing ? 'pb-48' : ''}`}>
+      <div className="flex justify-end px-1 text-sm">
+        <button type="button" onClick={() => setSharing(true)} className="text-accent-ink">
+          分享未開始的活動
+        </button>
       </div>
 
       <ul className="space-y-2">
@@ -130,20 +121,41 @@ function SessionList({ showVoided }: { showVoided: boolean }) {
                 .join('・')}
               receivables={s.receivables}
               voided={s.voided_at !== null}
-              selected={selecting ? selected.has(s.id) : undefined}
-              onSelect={() => toggle(s.id)}
             />
           </li>
         ))}
       </ul>
 
-      {selecting && (
+      {sharing && (
+        // 點面板以外的地方（遮罩）就關掉分享；遮罩停在底部分頁上方，切換分頁照常可以按
+        <button
+          type="button"
+          aria-label="取消分享"
+          onClick={() => setSharing(false)}
+          className="fixed inset-x-0 top-0 bottom-[calc(var(--nav-height)+env(safe-area-inset-bottom))] bg-page/60"
+        />
+      )}
+      {sharing && (
         <div className="fixed inset-x-0 bottom-[calc(var(--nav-height)+env(safe-area-inset-bottom))] border-t border-line bg-surface p-3">
-          <div className="mx-auto max-w-lg">
-            <ShareButtons
-              text={sessionsShareText(chosen, venues.data ?? [])}
-              disabled={chosen.length === 0}
-            />
+          <div className="mx-auto max-w-lg space-y-2">
+            <div className="grid grid-cols-2 gap-1 rounded-lg bg-subtle p-1">
+              {(['play', 'coaching'] as const).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => setShareKind(kind)}
+                  className={`rounded-md py-1.5 text-sm ${shareKind === kind ? 'bg-surface font-semibold shadow-sm' : 'text-muted'}`}
+                >
+                  {SESSION_KIND_LABEL[kind]}（{upcomingOf(kind).length}）
+                </button>
+              ))}
+            </div>
+            <p className="px-1 text-sm text-muted">
+              {chosen.length === 0
+                ? `沒有還沒開始的${SESSION_KIND_LABEL[shareKind]}`
+                : `將分享：${chosen.map((s) => formatDay(s.played_on)).join('、')}`}
+            </p>
+            <ShareButtons text={sessionsShareText(chosen, venues.data ?? [])} disabled={chosen.length === 0} />
           </div>
         </div>
       )}
@@ -184,32 +196,18 @@ function Card({
   subtitle,
   receivables,
   voided,
-  selected,
-  onSelect,
 }: {
   to: string
   title: string
   subtitle: string
   receivables: Receivable[]
   voided: boolean
-  /** 有值時是選取模式：點卡片切換勾選，不會跳頁 */
-  selected?: boolean
-  onSelect?: () => void
 }) {
   const unpaid = receivables.filter((r) => r.paid_at === null)
   const outstanding = unpaid.reduce((sum, r) => sum + r.amount_due, 0)
 
   const content = (
     <div className="flex items-start justify-between gap-2">
-      {selected !== undefined && (
-        <span
-          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs ${
-            selected ? 'border-accent bg-accent text-on-accent' : 'border-line-strong'
-          }`}
-        >
-          {selected && '✓'}
-        </span>
-      )}
       <div className="min-w-0 flex-1">
         <p className={`font-semibold ${voided ? 'line-through' : ''}`}>{title}</p>
         <p className="text-sm text-muted">{subtitle}</p>
@@ -228,21 +226,6 @@ function Card({
       )}
     </div>
   )
-
-  if (selected !== undefined) {
-    return (
-      <button
-        type="button"
-        onClick={onSelect}
-        aria-pressed={selected}
-        className={`block w-full rounded-xl border-2 bg-surface p-3 text-left shadow-sm ${
-          selected ? 'border-accent' : 'border-transparent'
-        }`}
-      >
-        {content}
-      </button>
-    )
-  }
 
   return (
     <Link to={to} className={`block rounded-xl bg-surface p-3 shadow-sm active:bg-subtle ${voided ? 'opacity-50' : ''}`}>
