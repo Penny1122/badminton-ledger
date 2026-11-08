@@ -348,9 +348,42 @@ export type Debt = {
   label: string
   date: string
   to: string
+  /** 活動結束的時間點；收款單沒有活動時間，是 null（一律列出） */
+  endsAt: dayjs.Dayjs | null
 }
 
 export type Debtor = { name: string; total: number; items: Debt[] }
+
+/**
+ * 活動什麼時候算結束。有結束時間就用結束時間，結束比開始早代表跨日（22:00–01:00）要加一天；
+ * 沒填結束時間就當作那天整天，到隔天 00:00 才算結束
+ */
+export function sessionEndsAt(playedOn: string, startTime: string | null, endTime: string | null) {
+  if (!endTime) return dayjs(playedOn).add(1, 'day')
+  const end = dayjs(`${playedOn}T${endTime}`)
+  return startTime && endTime < startTime ? end.add(1, 'day') : end
+}
+
+/**
+ * 只留下已經結束的活動欠款（記帳者都是打完才收錢），還沒結束的另外算筆數和金額，
+ * 讓首頁說明為什麼清單合計比「待收款」少
+ */
+export function endedDebts(debtors: Debtor[], now = dayjs()) {
+  let hiddenCount = 0
+  let hiddenAmount = 0
+  const result: Debtor[] = []
+  for (const d of debtors) {
+    const items = d.items.filter((item) => {
+      if (item.endsAt === null || !now.isBefore(item.endsAt)) return true
+      hiddenCount += 1
+      hiddenAmount += item.amount
+      return false
+    })
+    if (items.length > 0) result.push({ name: d.name, total: items.reduce((sum, i) => sum + i.amount, 0), items })
+  }
+  result.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'zh-TW'))
+  return { debtors: result, hiddenCount, hiddenAmount }
+}
 
 /** 還沒付的人，依欠款金額由多到少（不含作廢的場次和收款單） */
 export function useDebtors() {
@@ -360,7 +393,7 @@ export function useDebtors() {
       const { data, error } = await supabase
         .from('receivables')
         .select(
-          'id, amount_due, member:members(name), session:sessions(id, played_on, venue, voided_at), collection:collections(id, title, collected_on, voided_at)',
+          'id, amount_due, member:members(name), session:sessions(id, played_on, start_time, end_time, venue, voided_at), collection:collections(id, title, collected_on, voided_at)',
         )
         .is('paid_at', null)
       if (error) throw error
@@ -369,7 +402,14 @@ export function useDebtors() {
         id: string
         amount_due: number
         member: { name: string }
-        session: { id: string; played_on: string; venue: string | null; voided_at: string | null } | null
+        session: {
+          id: string
+          played_on: string
+          start_time: string | null
+          end_time: string | null
+          venue: string | null
+          voided_at: string | null
+        } | null
         collection: { id: string; title: string; collected_on: string; voided_at: string | null } | null
       }
       const byName = new Map<string, Debtor>()
@@ -383,6 +423,7 @@ export function useDebtors() {
             label: r.session.venue ?? '打球',
             date: r.session.played_on,
             to: `/sessions/${r.session.id}`,
+            endsAt: sessionEndsAt(r.session.played_on, r.session.start_time, r.session.end_time),
           }
         } else if (r.collection) {
           if (r.collection.voided_at) continue
@@ -392,6 +433,7 @@ export function useDebtors() {
             label: r.collection.title,
             date: r.collection.collected_on,
             to: `/collections/${r.collection.id}`,
+            endsAt: null,
           }
         } else continue
 

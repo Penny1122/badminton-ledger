@@ -4,6 +4,7 @@ import ShareButtons from '../components/ShareButtons'
 import { formatDay, formatTWD } from '../lib/format'
 import {
   ballFund,
+  endedDebts,
   useDebtors,
   useLedgerSummary,
   useMonthTransactions,
@@ -29,6 +30,8 @@ export default function DashboardPage() {
   const monthIncome = active.filter((t) => t.type === 'income').reduce((sum, t) => sum + t.amount, 0)
   const monthExpense = active.filter((t) => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0)
   const fund = totals.data ? ballFund(totals.data) : null
+  // 事後才收錢，還沒結束的活動先不列在清單和分享文字裡
+  const due = endedDebts(debtors.data ?? [])
 
   return (
     <div className="space-y-3">
@@ -82,7 +85,12 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <DebtorList debtors={debtors.data ?? []} loading={debtors.isLoading} />
+      <DebtorList
+        debtors={due.debtors}
+        hiddenCount={due.hiddenCount}
+        hiddenAmount={due.hiddenAmount}
+        loading={debtors.isLoading}
+      />
 
       <div className="pt-1">
         <ShareButtons
@@ -91,7 +99,7 @@ export default function DashboardPage() {
             balance,
             outstanding,
             fund,
-            debtors: debtors.data ?? [],
+            debtors: due.debtors,
           })}
         />
       </div>
@@ -99,10 +107,30 @@ export default function DashboardPage() {
   )
 }
 
-function DebtorList({ debtors, loading }: { debtors: Debtor[]; loading: boolean }) {
+function DebtorList({
+  debtors,
+  hiddenCount,
+  hiddenAmount,
+  loading,
+}: {
+  debtors: Debtor[]
+  hiddenCount: number
+  hiddenAmount: number
+  loading: boolean
+}) {
   if (loading) return null
+  const hiddenNote = hiddenCount > 0 && (
+    <p className="mt-1 px-1 text-xs text-faint tabular-nums">
+      另有 {hiddenCount} 筆還沒結束的活動（{formatTWD(hiddenAmount)}），打完才會列出
+    </p>
+  )
   if (debtors.length === 0) {
-    return <p className="rounded-xl bg-surface p-3 text-center text-sm text-accent-ink shadow-sm">✓ 大家都付清了</p>
+    return (
+      <section>
+        <p className="rounded-xl bg-surface p-3 text-center text-sm text-accent-ink shadow-sm">✓ 大家都付清了</p>
+        {hiddenNote}
+      </section>
+    )
   }
 
   return (
@@ -130,6 +158,7 @@ function DebtorList({ debtors, loading }: { debtors: Debtor[]; loading: boolean 
           </li>
         ))}
       </ul>
+      {hiddenNote}
     </section>
   )
 }
